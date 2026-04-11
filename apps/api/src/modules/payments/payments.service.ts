@@ -59,10 +59,11 @@ export class PaymentsService {
     return this.stripe.refunds.create({ payment_intent: paymentIntentId });
   }
 
-  async createSubscription(customerId: string, developerName: string, metadata: Record<string, string>) {
-    const product = await this.stripe.products.create({
-      name: 'Priority Access — ' + developerName,
-    });
+async createSubscription(customerId: string, developerName: string, metadata: Record<string, string>) {
+  const product = await this.stripe.products.create({ name: 'Priority Access - ' + developerName });
+  const price = await this.stripe.prices.create({ product: product.id, unit_amount: 30000, currency: 'usd', recurring: { interval: 'month' } });
+  return this.stripe.subscriptions.create({ customer: customerId, items: [{ price: price.id }], metadata });
+}
     const price = await this.stripe.prices.create({
       product: product.id,
       unit_amount: 30000,
