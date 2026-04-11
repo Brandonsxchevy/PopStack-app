@@ -19,7 +19,6 @@ export class PaymentsService {
     });
   }
 
-  // Step 1: Create hold (manual capture)
   async createHold(amountCents: number, metadata: Record<string, string>) {
     return this.stripe.paymentIntents.create({
       amount: amountCents,
@@ -29,24 +28,20 @@ export class PaymentsService {
     });
   }
 
-  // Step 2: Capture on developer accept
   async capture(paymentIntentId: string) {
     return this.stripe.paymentIntents.capture(paymentIntentId);
   }
 
-  // Step 3: Transfer to developer (called on approve / auto-release)
   async transferToDeveloper(paymentIntentId: string, developerId: string, transferGroup: string) {
     const dev = await this.db.user.findUnique({ where: { id: developerId } });
     if (!dev?.stripeAccountId) {
-      this.logger.warn(`Developer ${developerId} has no Stripe account — queuing for retry`);
+      this.logger.warn('Developer ' + developerId + ' has no Stripe account');
       return null;
     }
-
     const pi = await this.stripe.paymentIntents.retrieve(paymentIntentId);
     const grossAmount = pi.amount_received;
     const fee = Math.round(grossAmount * PLATFORM_FEE_PCT);
     const netAmount = grossAmount - fee;
-
     return this.stripe.transfers.create({
       amount: netAmount,
       currency: 'usd',
@@ -56,28 +51,27 @@ export class PaymentsService {
     });
   }
 
-  // Cancel PI — free if before capture
   async cancel(paymentIntentId: string) {
     return this.stripe.paymentIntents.cancel(paymentIntentId);
   }
 
-  // Full refund after capture
   async refund(paymentIntentId: string) {
     return this.stripe.refunds.create({ payment_intent: paymentIntentId });
   }
 
-  // Create Stripe subscription for retainer
   async createSubscription(customerId: string, developerName: string, metadata: Record<string, string>) {
+    const product = await this.stripe.products.create({
+      name: 'Priority Access — ' + developerName,
+    });
+    const price = await this.stripe.prices.create({
+      product: product.id,
+      unit_amount: 30000,
+      currency: 'usd',
+      recurring: { interval: 'month' },
+    });
     return this.stripe.subscriptions.create({
       customer: customerId,
-      items: [{
-        price_data: {
-          currency: 'usd',
-          unit_amount: 30000, // $300/month
-          recurring: { interval: 'month' },
-          product_data: { name: `Priority Access — ${developerName}` },
-        },
-      }],
+      items: [{ price: price.id }],
       metadata,
     });
   }
@@ -88,11 +82,9 @@ export class PaymentsService {
     });
   }
 
-  // Create or retrieve Stripe customer
   async getOrCreateCustomer(userId: string, email: string): Promise<string> {
     const user = await this.db.user.findUnique({ where: { id: userId } });
     if (user?.stripeCustomerId) return user.stripeCustomerId;
-
     const customer = await this.stripe.customers.create({ email, metadata: { userId } });
     await this.db.user.update({
       where: { id: userId },
@@ -101,12 +93,11 @@ export class PaymentsService {
     return customer.id;
   }
 
-  // Validate Stripe webhook signature
   constructWebhookEvent(payload: Buffer, signature: string) {
     return this.stripe.webhooks.constructEvent(
       payload,
       signature,
-      this.config.get('STRIPE_WEBHOOK_SECRET')!,
+      this.config.get('STRIPE_WEBHOOK_SECRET', ''),
     );
   }
 }

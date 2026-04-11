@@ -11,14 +11,12 @@ export class QuestionsService {
   ) {}
 
   async create(userId: string, dto: CreateQuestionDto) {
-    // Must have URL or screenshot
     if (!dto.url && (!dto.screenshotKeys || dto.screenshotKeys.length === 0)) {
       throw new BadRequestException(
         'Please add a link or screenshot so a Stacker can help you faster',
       );
     }
 
-    // Compute clarity score
     const clarityScore = this.computeClarity({
       hasUrl: !!dto.url,
       screenshotCount: dto.screenshotKeys?.length || 0,
@@ -33,12 +31,12 @@ export class QuestionsService {
         title: dto.title,
         description: dto.description,
         stackTags: dto.stackTags || [],
-        budgetTier: dto.budgetTier,
-        urgency: dto.urgency,
+        budgetTier: dto.budgetTier as any,
+        urgency: dto.urgency as any,
         url: dto.url,
         screenshotKeys: dto.screenshotKeys || [],
         clarityScore: clarityScore.score,
-        clarityBreakdown: clarityScore.breakdown,
+        clarityBreakdown: clarityScore.breakdown as any,
         source: dto.linkId ? 'DIRECT_LINK' : 'MARKETPLACE',
         linkId: dto.linkId,
         preSelectedDevId: dto.preSelectedDevId,
@@ -46,7 +44,6 @@ export class QuestionsService {
       },
     });
 
-    // Create thread immediately
     if (dto.preSelectedDevId) {
       await this.db.thread.create({
         data: {
@@ -59,7 +56,6 @@ export class QuestionsService {
       });
     }
 
-    // Enqueue fingerprint job async (non-blocking)
     if (dto.url) {
       this.fingerprint.enqueue(question.id, dto.url);
     }
@@ -68,21 +64,16 @@ export class QuestionsService {
   }
 
   async getFeed(developerId: string, filters: any) {
-    const where: any = {
-      status: 'OPEN',
-      preSelectedDevId: null, // general marketplace only
-    };
+    const where: any = { status: 'OPEN', preSelectedDevId: null };
 
-    if (filters.platform) where.fingerprint = { platform: filters.platform.toUpperCase() };
     if (filters.minClarity) where.clarityScore = { gte: parseFloat(filters.minClarity) };
     if (filters.budgetTier) where.budgetTier = filters.budgetTier;
 
-    // Exclude already-swiped questions
     const swiped = await this.db.swipe.findMany({
       where: { developerId },
       select: { questionId: true },
     });
-    const swipedIds = swiped.map(s => s.questionId);
+    const swipedIds = swiped.map((s: any) => s.questionId);
     if (swipedIds.length > 0) where.id = { notIn: swipedIds };
 
     return this.db.question.findMany({
@@ -103,7 +94,11 @@ export class QuestionsService {
       include: {
         fingerprint: true,
         user: { select: { id: true, name: true, avgRating: true, badges: true, profile: true } },
-        responses: { include: { developer: { select: { id: true, name: true, avgRating: true, badges: true } } } },
+        responses: {
+          include: {
+            developer: { select: { id: true, name: true, avgRating: true, badges: true } },
+          },
+        },
       },
     });
   }
@@ -120,7 +115,6 @@ export class QuestionsService {
     if (input.hasUrl) {
       urlPts = 2.5 + ((input.fingerprintConfidence || 0) / 100) * 1.5;
     }
-
     let ssPts = 0;
     if (input.screenshotCount === 1) ssPts = 2.5;
     else if (input.screenshotCount >= 2) ssPts = 3.0;
