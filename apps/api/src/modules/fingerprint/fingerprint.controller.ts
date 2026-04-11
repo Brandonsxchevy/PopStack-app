@@ -11,7 +11,7 @@ export class FingerprintController {
   constructor(private readonly fp: FingerprintService) {}
 
   @Post('rerun')
-  async rerun(@Body() body: { questionId: string; url: string }): Promise<any> {
+ async rerun(@Body() body: { questionId: string; url: string }): Promise<any> {
     return this.fp.run(body.questionId, body.url);
   }
 
