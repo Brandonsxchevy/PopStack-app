@@ -1,0 +1,739 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  USER
+  DEVELOPER
+}
+
+enum SuspensionStatus {
+  ACTIVE
+  WARNED
+  SUSPENDED
+  BANNED
+}
+
+enum QuestionStatus {
+  OPEN
+  LOCKED
+  AWAITING_ACCEPT
+  CLOSED
+  EXPIRED
+}
+
+enum BudgetTier {
+  FIVE
+  TWENTY
+  FIFTY_PLUS
+}
+
+enum Urgency {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum QuestionSource {
+  MARKETPLACE
+  DIRECT_LINK
+}
+
+enum Platform {
+  WIX
+  WORDPRESS
+  SHOPIFY
+  SQUARESPACE
+  WEBFLOW
+  UNKNOWN
+}
+
+enum FingerprintStatus {
+  PENDING
+  COMPLETE
+  FAILED
+  SKIPPED
+}
+
+enum SessionTier {
+  QUICK_FOLLOWUP
+  FIFTEEN_MIN
+  FULL_SOLUTION
+}
+
+enum SessionStatus {
+  PENDING_ACCEPT
+  ACTIVE
+  ENDED
+  CANCELLED
+  ESCALATING
+}
+
+enum EscrowStatus {
+  HELD
+  RELEASED
+  REFUNDED
+}
+
+enum ContractStatus {
+  DRAFT
+  PENDING_DEV
+  PENDING_USER
+  SIGNED
+  CANCELLED
+}
+
+enum JobStatus {
+  ACTIVE
+  PARTIAL
+  BLOCKED
+  PENDING_REVIEW
+  CLOSED
+}
+
+enum FinalizationType {
+  FULL
+  PARTIAL
+  DEFERRED
+}
+
+enum TaskStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  STABILIZED
+  BLOCKED
+  DEFERRED
+}
+
+enum FixType {
+  TEMPORARY
+  PERMANENT
+}
+
+enum BlockedReason {
+  DNS_ACCESS
+  PLATFORM_ACCESS
+  SCOPE_EXCEEDED
+  UNKNOWN
+}
+
+enum ParticipantRole {
+  PRIMARY_DEV
+  TESTER
+  FRONTEND
+  BACKEND
+}
+
+enum ParticipantStatus {
+  INVITED
+  ACTIVE
+  DECLINED
+  REMOVED
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+enum ImpactLevel {
+  NONE
+  MEDIUM
+  HIGH
+}
+
+enum ProposalStatus {
+  DRAFT
+  PRESENTED
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum ThreadStatus {
+  NEW
+  AWAITING_RESPONSE
+  AWAITING_PAYMENT
+  ACTIVE
+  BLOCKED
+  PARTIAL
+  COMPLETED
+}
+
+enum UserSection {
+  ACTIVE_WORK
+  WAITING_ON_YOU
+  COMPLETED
+  DRAFT
+}
+
+enum DevSection {
+  NEW_REQUESTS
+  AWAITING_PAYMENT
+  ACTIVE_WORK
+  BLOCKED
+  COMPLETED
+}
+
+enum MessageType {
+  FREE_RESPONSE
+  PAID_MESSAGE
+  SYSTEM_EVENT
+  INTERNAL_DEV_NOTE
+}
+
+enum MessageChannel {
+  EXTERNAL
+  INTERNAL
+}
+
+enum TranslationStatus {
+  NONE
+  AVAILABLE
+  GENERATED
+}
+
+enum SystemEventType {
+  SESSION_STARTED
+  SESSION_ENDED
+  ACCESS_REQUIRED
+  TASK_BLOCKED
+  TASK_STABILIZED
+  PARTIAL_SUBMITTED
+  PAYMENT_RELEASED
+  COLLAB_JOINED
+  CONTRACT_ESCALATED
+  PROPOSAL_PRESENTED
+  PROPOSAL_ACCEPTED
+}
+
+enum LinkType {
+  GENERAL
+  CONTEXTUAL
+}
+
+enum RequestType {
+  WEBSITE_FIX
+  BUG_FIX
+  QUICK_QUESTION
+}
+
+enum AccessRequestStatus {
+  REQUESTED
+  GRANTED
+  REVOKED
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+model User {
+  id                String           @id @default(uuid())
+  email             String           @unique
+  name              String
+  passwordHash      String
+  role              Role
+  stripeAccountId   String?
+  stripeCustomerId  String?
+  preferredLanguage String           @default("en")
+  autoTranslate     Boolean          @default(false)
+  avgRating         Float?
+  ratingCount       Int              @default(0)
+  flagCount         Int              @default(0)
+  badges            String[]
+  suspensionStatus  SuspensionStatus @default(ACTIVE)
+  isActive          Boolean          @default(true)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  profile           Profile?
+  questionsAsked    Question[]       @relation("UserQuestions")
+  sessionsAsUser    Session[]        @relation("UserSessions")
+  sessionsAsDev     Session[]        @relation("DevSessions")
+  responses         Response[]
+  swipes            Swipe[]
+  ratingsGiven      Rating[]         @relation("RatingsGiven")
+  ratingsReceived   Rating[]         @relation("RatingsReceived")
+  participants      Participant[]
+  retainersAsUser   Retainer[]       @relation("RetainerUser")
+  retainersAsDev    Retainer[]       @relation("RetainerDev")
+  devLinks          DevLink[]
+  sentInvites       Invite[]         @relation("InviteSender")
+  receivedInvites   Invite[]         @relation("InviteReceiver")
+  threadsAsUser     Thread[]         @relation("ThreadUser")
+  threadsAsDev      Thread[]         @relation("ThreadDev")
+  sentMessages      ThreadMessage[]
+  templates         ResponseTemplate[]
+}
+
+model Profile {
+  id                  String    @id @default(uuid())
+  userId              String    @unique
+  user                User      @relation(fields: [userId], references: [id])
+  bio                 String?
+  avatarKey           String?
+  websiteUrl          String?
+  location            String?
+  cvKey               String?
+  techTags            String[]
+  yearsExperience     Int?
+  hourlyRateHint      Int?
+  portfolioLinks      String[]
+  isPublic            Boolean   @default(true)
+  retainerEnabled     Boolean   @default(false)
+  retainerMaxClients  Int       @default(5)
+  slaHours            Int       @default(12)
+  discountPct         Int       @default(0)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+model Question {
+  id                String          @id @default(uuid())
+  userId            String
+  user              User            @relation("UserQuestions", fields: [userId], references: [id])
+  title             String
+  description       String?
+  stackTags         String[]
+  budgetTier        BudgetTier
+  urgency           Urgency
+  status            QuestionStatus  @default(OPEN)
+  url               String?
+  screenshotKeys    String[]
+  clarityScore      Float           @default(0)
+  clarityBreakdown  Json?
+  fingerprintId     String?
+  fingerprint       Fingerprint?    @relation(fields: [fingerprintId], references: [id])
+  source            QuestionSource  @default(MARKETPLACE)
+  linkId            String?
+  devLink           DevLink?        @relation(fields: [linkId], references: [id])
+  preSelectedDevId  String?
+  requiresAccess    Boolean         @default(false)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  responses         Response[]
+  swipes            Swipe[]
+  sessions          Session[]
+  contracts         Contract[]
+  thread            Thread?
+  accessRequests    AccessRequest[]
+  slaEvents         SlaEvent[]
+}
+
+model Fingerprint {
+  id             String            @id @default(uuid())
+  questionId     String
+  url            String
+  platform       Platform          @default(UNKNOWN)
+  confidence     Int               @default(0)
+  signals        Json
+  rawHeaders     Json?
+  userOverride   Platform?
+  overrideAt     DateTime?
+  status         FingerprintStatus @default(PENDING)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  questions      Question[]
+}
+
+model Response {
+  id               String    @id @default(uuid())
+  questionId       String
+  question         Question  @relation(fields: [questionId], references: [id])
+  developerId      String
+  developer        User      @relation(fields: [developerId], references: [id])
+  blocks           Json
+  textCharCount    Int       @default(0)
+  effortEstimate   String?
+  offerPriceCents  Int?
+  offerTimeMinutes Int?
+  createdAt        DateTime  @default(now())
+
+  @@unique([questionId, developerId])
+}
+
+model Swipe {
+  id          String   @id @default(uuid())
+  developerId String
+  developer   User     @relation(fields: [developerId], references: [id])
+  questionId  String
+  question    Question @relation(fields: [questionId], references: [id])
+  action      String   // SKIP | INTERESTED | ANSWER_NOW
+  createdAt   DateTime @default(now())
+
+  @@unique([developerId, questionId])
+}
+
+model Session {
+  id                     String        @id @default(uuid())
+  questionId             String
+  question               Question      @relation(fields: [questionId], references: [id])
+  userId                 String
+  user                   User          @relation("UserSessions", fields: [userId], references: [id])
+  developerId            String
+  developer              User          @relation("DevSessions", fields: [developerId], references: [id])
+  tier                   SessionTier
+  status                 SessionStatus @default(PENDING_ACCEPT)
+  durationSeconds        Int           @default(900)
+  startedAt              DateTime?
+  endedAt                DateTime?
+  stripePaymentIntentId  String?
+  escrowStatus           EscrowStatus  @default(HELD)
+  proposalId             String?
+  proposal               Proposal?     @relation(fields: [proposalId], references: [id])
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+
+  ratings                Rating[]
+  thread                 Thread?
+  escalation             ContractEscalation?
+}
+
+model Proposal {
+  id                       String         @id @default(uuid())
+  sessionId                String?
+  contractId               String?
+  developerId              String
+  userId                   String
+  basePriceCents           Int
+  expedited                Boolean        @default(false)
+  expeditedSlaMinutes      Int?
+  complexityReasons        String[]
+  impactLevel              ImpactLevel    @default(NONE)
+  impactNote               String?
+  expeditedPremiumCents    Int            @default(0)
+  complexityPremiumCents   Int            @default(0)
+  impactPremiumCents       Int            @default(0)
+  totalPriceCents          Int
+  whyMoreExpensive         String?
+  status                   ProposalStatus @default(DRAFT)
+  presentedAt              DateTime?
+  acceptedAt               DateTime?
+  expiresAt                DateTime?
+  createdAt                DateTime       @default(now())
+  updatedAt                DateTime       @updatedAt
+
+  sessions                 Session[]
+}
+
+model Contract {
+  id                    String         @id @default(uuid())
+  questionId            String
+  question              Question       @relation(fields: [questionId], references: [id])
+  userId                String
+  developerId           String
+  blocks                Json
+  priceCents            Int
+  timeEstimateHours     Int?
+  status                ContractStatus @default(DRAFT)
+  stripePaymentIntentId String?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  job                   Job?
+  participants          Participant[]
+  paymentSplits         PaymentSplit[]
+  invites               Invite[]
+  verifiedFixes         VerifiedFix[]
+  thread                Thread?
+  escalation            ContractEscalation?
+}
+
+model ContractEscalation {
+  id                      String   @id @default(uuid())
+  sessionId               String   @unique
+  session                 Session  @relation(fields: [sessionId], references: [id])
+  contractId              String   @unique
+  contract                Contract @relation(fields: [contractId], references: [id])
+  trigger                 String   // multi_system | access_missing | time_exceeded | scope_expanded
+  sessionTimeAtEscalation Int
+  createdAt               DateTime @default(now())
+}
+
+model Job {
+  id                      String           @id @default(uuid())
+  contractId              String           @unique
+  contract                Contract         @relation(fields: [contractId], references: [id])
+  status                  JobStatus        @default(ACTIVE)
+  escalatedFromSessionId  String?
+  finalizationType        FinalizationType?
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+
+  tasks                   Task[]
+}
+
+model Task {
+  id                     String        @id @default(uuid())
+  jobId                  String
+  job                    Job           @relation(fields: [jobId], references: [id])
+  title                  String
+  description            String?
+  status                 TaskStatus    @default(NOT_STARTED)
+  statusNote             String?
+  fixType                FixType?
+  ownerParticipantId     String?
+  ownerParticipant       Participant?  @relation(fields: [ownerParticipantId], references: [id])
+  allocatedAmountCents   Int           @default(0)
+  stripePaymentIntentId  String?
+  billableOnBlock        Boolean       @default(false)
+  blockedReason          BlockedReason?
+  requiresAccessType     String?
+  evidenceKeys           String[]
+  timeSpentMinutes       Int           @default(0)
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+
+  taskPaymentSplits      TaskPaymentSplit[]
+}
+
+model Participant {
+  id               String            @id @default(uuid())
+  contractId       String
+  contract         Contract          @relation(fields: [contractId], references: [id])
+  userId           String
+  user             User              @relation(fields: [userId], references: [id])
+  role             ParticipantRole
+  status           ParticipantStatus @default(INVITED)
+  invitedBy        String?
+  invitedAt        DateTime          @default(now())
+  acceptedAt       DateTime?
+  taskDescription  String?
+  canViewUserChat  Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  paymentSplits    PaymentSplit[]
+  taskSplits       TaskPaymentSplit[]
+  ownedTasks       Task[]
+}
+
+model PaymentSplit {
+  id                String      @id @default(uuid())
+  contractId        String
+  contract          Contract    @relation(fields: [contractId], references: [id])
+  participantId     String
+  participant       Participant @relation(fields: [participantId], references: [id])
+  amountCents       Int
+  stripeTransferId  String?
+  transferredAt     DateTime?
+  createdAt         DateTime    @default(now())
+}
+
+model TaskPaymentSplit {
+  id                String      @id @default(uuid())
+  taskId            String
+  task              Task        @relation(fields: [taskId], references: [id])
+  participantId     String
+  participant       Participant @relation(fields: [participantId], references: [id])
+  amountCents       Int
+  stripeTransferId  String?
+  releasedAt        DateTime?
+  createdAt         DateTime    @default(now())
+}
+
+model Invite {
+  id                  String       @id @default(uuid())
+  contractId          String
+  contract            Contract     @relation(fields: [contractId], references: [id])
+  inviterId           String
+  inviter             User         @relation("InviteSender", fields: [inviterId], references: [id])
+  inviteeId           String
+  invitee             User         @relation("InviteReceiver", fields: [inviteeId], references: [id])
+  role                ParticipantRole
+  message             String?
+  offeredAmountCents  Int
+  token               String       @unique
+  status              InviteStatus @default(PENDING)
+  expiresAt           DateTime
+  createdAt           DateTime     @default(now())
+}
+
+model VerifiedFix {
+  id                  String      @id @default(uuid())
+  contractId          String
+  contract            Contract    @relation(fields: [contractId], references: [id])
+  testerParticipantId String
+  devicesTested       String[]
+  screenshotKeys      String[]
+  notes               String?
+  createdAt           DateTime    @default(now())
+}
+
+model Rating {
+  id          String   @id @default(uuid())
+  sessionId   String
+  session     Session  @relation(fields: [sessionId], references: [id])
+  raterId     String
+  rater       User     @relation("RatingsGiven", fields: [raterId], references: [id])
+  rateeId     String
+  ratee       User     @relation("RatingsReceived", fields: [rateeId], references: [id])
+  overall     Int
+  dimension1  Int
+  dimension2  Int
+  dimension3  Int
+  comment     String?
+  isFlagged   Boolean  @default(false)
+  isVisible   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  flags       Flag[]
+
+  @@unique([sessionId, raterId])
+}
+
+model Flag {
+  id             String   @id @default(uuid())
+  ratingId       String
+  rating         Rating   @relation(fields: [ratingId], references: [id])
+  flaggedUserId  String
+  status         String   @default("PENDING") // PENDING | REVIEWED | DISMISSED | ACTIONED
+  adminNote      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Thread {
+  id                  String        @id @default(uuid())
+  userId              String
+  user                User          @relation("ThreadUser", fields: [userId], references: [id])
+  developerId         String
+  developer           User          @relation("ThreadDev", fields: [developerId], references: [id])
+  questionId          String        @unique
+  question            Question      @relation(fields: [questionId], references: [id])
+  sessionId           String?       @unique
+  session             Session?      @relation(fields: [sessionId], references: [id])
+  contractId          String?       @unique
+  contract            Contract?     @relation(fields: [contractId], references: [id])
+  jobId               String?
+  status              ThreadStatus  @default(NEW)
+  userSection         UserSection   @default(ACTIVE_WORK)
+  devSection          DevSection    @default(NEW_REQUESTS)
+  userUnreadCount     Int           @default(0)
+  devUnreadCount      Int           @default(0)
+  lastMessageAt       DateTime?
+  lastMessagePreview  String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  messages            ThreadMessage[]
+}
+
+model ThreadMessage {
+  id                   String             @id @default(uuid())
+  threadId             String
+  thread               Thread             @relation(fields: [threadId], references: [id])
+  senderId             String?
+  sender               User?              @relation(fields: [senderId], references: [id])
+  type                 MessageType
+  blocks               Json               @default("[]")
+  systemEventType      SystemEventType?
+  systemEventData      Json?
+  visibleToUser        Boolean            @default(true)
+  isTemplateSaved      Boolean            @default(false)
+  channel              MessageChannel     @default(EXTERNAL)
+  originalText         String?
+  detectedLanguage     String?
+  translatedText       String?
+  translationStatus    TranslationStatus  @default(NONE)
+  translationTargetLang String?
+  createdAt            DateTime           @default(now())
+}
+
+model ResponseTemplate {
+  id              String   @id @default(uuid())
+  developerId     String
+  developer       User     @relation(fields: [developerId], references: [id])
+  sourceMessageId String?
+  title           String
+  blocks          Json
+  platformTags    String[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model DevLink {
+  id                String       @id @default(uuid())
+  developerId       String
+  developer         User         @relation(fields: [developerId], references: [id])
+  type              LinkType     @default(GENERAL)
+  shortcode         String       @unique
+  label             String?
+  requestType       RequestType?
+  optionalTags      String[]
+  requiresUrl       Boolean      @default(false)
+  requiresScreenshot Boolean     @default(false)
+  requiresAccess    Boolean      @default(false)
+  suggestedPriceMin Int?
+  suggestedPriceMax Int?
+  customHeadline    String?
+  customCta         String?
+  expiresAt         DateTime?
+  isActive          Boolean      @default(true)
+  useCount          Int          @default(0)
+  maxUses           Int?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  questions         Question[]
+}
+
+model Retainer {
+  id                  String    @id @default(uuid())
+  userId              String
+  user                User      @relation("RetainerUser", fields: [userId], references: [id])
+  developerId         String
+  developer           User      @relation("RetainerDev", fields: [developerId], references: [id])
+  stripeSubscriptionId String
+  monthlyPriceCents   Int       @default(30000)
+  slaHours            Int       @default(12)
+  discountPct         Int       @default(0)
+  isActive            Boolean   @default(true)
+  requestsThisMonth   Int       @default(0)
+  messagesToday       Int       @default(0)
+  maxDailyMessages    Int       @default(10)
+  maxActiveThreads    Int       @default(5)
+  periodStart         DateTime  @default(now())
+  nextRenewalAt       DateTime
+  cancelledAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  slaEvents           SlaEvent[]
+}
+
+model SlaEvent {
+  id             String    @id @default(uuid())
+  retainerId     String
+  retainer       Retainer  @relation(fields: [retainerId], references: [id])
+  questionId     String
+  question       Question  @relation(fields: [questionId], references: [id])
+  slaDeadline    DateTime
+  respondedAt    DateTime?
+  met            Boolean?
+  breachCredited Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+}
+
+model AccessRequest {
+  id                String              @id @default(uuid())
+  questionId        String
+  question          Question            @relation(fields: [questionId], references: [id])
+  developerId       String
+  platform          Platform
+  platformConfirmed Platform?
+  status            AccessRequestStatus @default(REQUESTED)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+}
