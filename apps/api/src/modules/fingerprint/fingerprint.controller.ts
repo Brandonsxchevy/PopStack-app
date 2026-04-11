@@ -11,12 +11,12 @@ export class FingerprintController {
   constructor(private readonly fp: FingerprintService) {}
 
   @Post('rerun')
-  rerun(@Body() body: { questionId: string; url: string }) {
+  async rerun(@Body() body: { questionId: string; url: string }): Promise<any> {
     return this.fp.run(body.questionId, body.url);
   }
 
   @Patch(':id/override')
-  override(@Param('id') id: string, @Body() body: { platform: string }) {
+  async override(@Param('id') id: string, @Body() body: { platform: string }): Promise<any> {
     return this.fp.override(id, body.platform);
   }
 }
