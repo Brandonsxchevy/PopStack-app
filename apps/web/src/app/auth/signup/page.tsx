@@ -1,4 +1,5 @@
 'use client'
+import { Suspense } from 'react'
 import { useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'
@@ -15,7 +16,7 @@ const schema = z.object({
 })
 type FormData = z.infer<typeof schema>
 
-export default function SignupPage() {
+function SignupForm() {
   const params = useSearchParams()
   const router = useRouter()
   const role = params.get('role') === 'developer' ? 'DEVELOPER' : 'USER'
@@ -46,7 +47,6 @@ export default function SignupPage() {
       <p className="text-sm text-gray-500 mb-6">
         {role === 'DEVELOPER' ? 'Fix fast. Earn real stacks.' : 'Pop problems. Fix fast.'}
       </p>
-
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
           <label className="text-sm font-medium text-gray-700">Name</label>
@@ -67,7 +67,6 @@ export default function SignupPage() {
           {loading ? 'Creating account...' : 'Create account'}
         </button>
       </form>
-
       <p className="text-sm text-center text-gray-500 mt-4">
         Already have an account?{' '}
         <Link href="/auth/login" className="text-brand font-medium">Log in</Link>
@@ -80,5 +79,13 @@ export default function SignupPage() {
         )}
       </p>
     </div>
+  )
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<div className="card shadow-sm p-8 text-center text-gray-400">Loading...</div>}>
+      <SignupForm />
+    </Suspense>
   )
 }
