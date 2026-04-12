@@ -64,18 +64,6 @@ async createSubscription(customerId: string, developerName: string, metadata: Re
   const price = await this.stripe.prices.create({ product: product.id, unit_amount: 30000, currency: 'usd', recurring: { interval: 'month' } });
   return this.stripe.subscriptions.create({ customer: customerId, items: [{ price: price.id }], metadata });
 }
-    const price = await this.stripe.prices.create({
-      product: product.id,
-      unit_amount: 30000,
-      currency: 'usd',
-      recurring: { interval: 'month' },
-    });
-    return this.stripe.subscriptions.create({
-      customer: customerId,
-      items: [{ price: price.id }],
-      metadata,
-    });
-  }
 
   async cancelSubscription(subscriptionId: string) {
     return this.stripe.subscriptions.update(subscriptionId, {
