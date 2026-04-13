@@ -7,6 +7,15 @@ import { api } from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
 import { toast } from 'sonner'
 
+const TIER_LABELS: Record<string, string> = {
+  QUICK_FOLLOWUP: '$7.50 — Quick follow-up',
+  FIFTEEN_MIN: '$30.00 — 15 min session',
+  FULL_SOLUTION: '$75+ — Full solution',
+  FIVE: '$7.50 — Quick follow-up',
+  TWENTY: '$30.00 — 15 min session',
+  FIFTY_PLUS: '$75+ — Full solution',
+}
+
 export default function ThreadPage() {
   const { id } = useParams()
   const router = useRouter()
@@ -21,7 +30,7 @@ export default function ThreadPage() {
   const { data: thread, isLoading } = useQuery({
     queryKey: ['thread', id],
     queryFn: () => api.get(`/threads/${id}`).then(r => r.data),
-    refetchInterval: 5000, // poll every 5s for new messages
+    refetchInterval: 5000,
   })
 
   const { data: messages = [], isLoading: messagesLoading } = useQuery({
@@ -30,10 +39,46 @@ export default function ThreadPage() {
     refetchInterval: 5000,
   })
 
-  // Scroll to bottom on new messages
+  const { data: session } = useQuery({
+    queryKey: ['session', thread?.sessionId],
+    queryFn: () => api.get(`/sessions/${thread.sessionId}`).then(r => r.data),
+    enabled: !!thread?.sessionId,
+    refetchInterval: 5000,
+  })
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  const accept = useMutation({
+    mutationFn: () => api.post(`/sessions/${thread.sessionId}/accept`),
+    onSuccess: () => {
+      toast.success('Session accepted! Get to work 🚀')
+      qc.invalidateQueries({ queryKey: ['session', thread?.sessionId] })
+      qc.invalidateQueries({ queryKey: ['thread', id] })
+      qc.invalidateQueries({ queryKey: ['dev-inbox'] })
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to accept'),
+  })
+
+  const decline = useMutation({
+    mutationFn: () => api.post(`/sessions/${thread.sessionId}/decline`),
+    onSuccess: () => {
+      toast.success('Session declined')
+      qc.invalidateQueries({ queryKey: ['dev-inbox'] })
+      router.push('/inbox')
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to decline'),
+  })
+
+  const complete = useMutation({
+    mutationFn: () => api.post(`/sessions/${thread.sessionId}/complete`),
+    onSuccess: () => {
+      toast.success('Session marked complete — 24h review window started')
+      qc.invalidateQueries({ queryKey: ['session', thread?.sessionId] })
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to complete'),
+  })
 
   const send = useMutation({
     mutationFn: () => {
@@ -41,10 +86,7 @@ export default function ThreadPage() {
       if (text.trim()) blocks.push({ type: 'text', content: text.trim() })
       if (showCode && code.trim()) blocks.push({ type: 'code', content: code.trim() })
       if (!blocks.length) return Promise.reject(new Error('Empty message'))
-      return api.post(`/threads/${id}/messages`, {
-        blocks,
-        type: 'PAID_MESSAGE',
-      })
+      return api.post(`/threads/${id}/messages`, { blocks, type: 'PAID_MESSAGE' })
     },
     onSuccess: () => {
       setText('')
@@ -79,6 +121,10 @@ export default function ThreadPage() {
 
   const otherPerson = user?.role === 'DEVELOPER' ? thread.user : thread.developer
   const questionTitle = thread.question?.title || 'Conversation'
+  const isDev = user?.role === 'DEVELOPER'
+  const isPendingAccept = session?.status === 'PENDING_ACCEPT'
+  const isActive = session?.status === 'ACTIVE'
+  const isEnded = session?.status === 'ENDED'
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -90,15 +136,83 @@ export default function ThreadPage() {
         </button>
         <div className="flex-1 min-w-0">
           <div className="font-medium text-gray-900 truncate">{questionTitle}</div>
-          <div className="text-xs text-gray-500">
-            with {otherPerson?.name || '...'}
-          </div>
+          <div className="text-xs text-gray-500">with {otherPerson?.name || '...'}</div>
         </div>
         <Link href="/" className="text-brand font-bold text-lg shrink-0">PS</Link>
       </nav>
 
+      {/* Session banner — developer accept/decline */}
+      {isDev && isPendingAccept && session && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3">
+          <div className="max-w-2xl mx-auto">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-amber-800 mb-0.5">
+                  New session request
+                </p>
+                <p className="text-xs text-amber-700">
+                  {TIER_LABELS[session.tier]} · from {thread.user?.name}
+                </p>
+                {session.question?.url && (
+                  <a href={session.question.url} target="_blank" rel="noopener noreferrer"
+                    className="text-xs text-brand underline mt-1 block truncate">
+                    {session.question.url}
+                  </a>
+                )}
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <button
+                  onClick={() => decline.mutate()}
+                  disabled={decline.isPending}
+                  className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50">
+                  Decline
+                </button>
+                <button
+                  onClick={() => accept.mutate()}
+                  disabled={accept.isPending}
+                  className="px-3 py-1.5 rounded-lg bg-brand text-white text-sm font-medium hover:bg-brand-dark transition-colors disabled:opacity-50">
+                  {accept.isPending ? 'Accepting...' : 'Accept ✓'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Session active banner */}
+      {isActive && (
+        <div className="bg-green-50 border-b border-green-200 px-4 py-2">
+          <div className="max-w-2xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <span className="text-sm text-green-700 font-medium">Session active</span>
+              <span className="text-xs text-green-600">· {TIER_LABELS[session?.tier]}</span>
+            </div>
+            {isDev && (
+              <button
+                onClick={() => complete.mutate()}
+                disabled={complete.isPending}
+                className="text-xs text-green-700 font-medium border border-green-300 px-2 py-1 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50">
+                {complete.isPending ? '...' : 'Mark complete'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Session ended banner */}
+      {isEnded && (
+        <div className="bg-gray-50 border-b border-gray-200 px-4 py-2">
+          <div className="max-w-2xl mx-auto text-center">
+            <span className="text-sm text-gray-600">
+              ✅ Session complete — {!isDev ? 'approve the work to release payment' : 'waiting for client approval'}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 pb-4">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 pb-4 max-w-2xl mx-auto w-full">
         {messagesLoading ? (
           <div className="text-center text-gray-400 py-8">Loading messages...</div>
         ) : messages.length === 0 ? (
@@ -106,9 +220,9 @@ export default function ThreadPage() {
             <div className="text-4xl mb-3">💬</div>
             <p className="text-gray-500 text-sm">No messages yet.</p>
             <p className="text-gray-400 text-xs mt-1">
-              {user?.role === 'USER'
-                ? 'Your developer will reach out shortly.'
-                : 'Start the conversation with your client.'}
+              {isDev
+                ? isPendingAccept ? 'Accept the session to start chatting.' : 'Start the conversation with your client.'
+                : 'Your developer will reach out shortly.'}
             </p>
           </div>
         ) : (
@@ -126,7 +240,7 @@ export default function ThreadPage() {
 
             return (
               <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[75%] ${isMe ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
+                <div className={`max-w-[75%] flex flex-col gap-1 ${isMe ? 'items-end' : 'items-start'}`}>
                   {!isMe && (
                     <span className="text-xs text-gray-400 px-1">{otherPerson?.name}</span>
                   )}
@@ -145,7 +259,7 @@ export default function ThreadPage() {
                         )}
                         {block.type === 'code' && (
                           <pre className={`text-xs p-2 rounded-lg mt-1 overflow-x-auto font-mono ${
-                            isMe ? 'bg-brand-dark/30' : 'bg-gray-900 text-green-400'
+                            isMe ? 'bg-white/10' : 'bg-gray-900 text-green-400'
                           }`}>
                             {block.content}
                           </pre>
@@ -164,63 +278,69 @@ export default function ThreadPage() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
-      <div className="bg-white border-t border-gray-200 p-3">
-        {showCode && (
-          <div className="mb-2">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-gray-500">Code snippet</span>
-              <button onClick={() => { setShowCode(false); setCode('') }}
-                className="text-xs text-red-400 hover:text-red-600">Remove</button>
+      {/* Input — disabled if pending accept */}
+      <div className="bg-white border-t border-gray-200 p-3 max-w-2xl mx-auto w-full">
+        {isDev && isPendingAccept ? (
+          <p className="text-sm text-gray-400 text-center py-2">
+            Accept the session to start messaging
+          </p>
+        ) : (
+          <>
+            {showCode && (
+              <div className="mb-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-gray-500">Code snippet</span>
+                  <button onClick={() => { setShowCode(false); setCode('') }}
+                    className="text-xs text-red-400 hover:text-red-600">Remove</button>
+                </div>
+                <textarea
+                  value={code}
+                  onChange={e => setCode(e.target.value)}
+                  className="w-full bg-gray-900 text-green-400 text-xs font-mono p-2 rounded-lg border-0 focus:outline-none focus:ring-1 focus:ring-brand min-h-[80px] resize-none"
+                  placeholder="// paste code here"
+                />
+              </div>
+            )}
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <textarea
+                  value={text}
+                  onChange={e => setText(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  className="w-full border border-gray-300 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand resize-none max-h-32"
+                  placeholder="Type a message... (Enter to send)"
+                  rows={1}
+                  onInput={e => {
+                    const t = e.target as HTMLTextAreaElement
+                    t.style.height = 'auto'
+                    t.style.height = Math.min(t.scrollHeight, 128) + 'px'
+                  }}
+                />
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={() => setShowCode(!showCode)}
+                  className={`p-2 rounded-xl text-sm transition-colors ${
+                    showCode ? 'bg-brand text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }`}
+                  title="Add code snippet">
+                  {'</>'}
+                </button>
+                <button
+                  onClick={() => send.mutate()}
+                  disabled={send.isPending || (!text.trim() && !code.trim())}
+                  className="bg-brand text-white p-2 rounded-xl hover:bg-brand-dark transition-colors disabled:opacity-50">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                    <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+                  </svg>
+                </button>
+              </div>
             </div>
-            <textarea
-              value={code}
-              onChange={e => setCode(e.target.value)}
-              className="w-full bg-gray-900 text-green-400 text-xs font-mono p-2 rounded-lg border-0 focus:outline-none focus:ring-1 focus:ring-brand min-h-[80px] resize-none"
-              placeholder="// paste code here"
-            />
-          </div>
+            <p className="text-xs text-gray-400 mt-1.5 px-1">
+              Enter to send · Shift+Enter for new line
+            </p>
+          </>
         )}
-
-        <div className="flex items-end gap-2">
-          <div className="flex-1">
-            <textarea
-              value={text}
-              onChange={e => setText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="w-full border border-gray-300 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand resize-none max-h-32"
-              placeholder="Type a message... (Enter to send)"
-              rows={1}
-              style={{ height: 'auto' }}
-              onInput={e => {
-                const t = e.target as HTMLTextAreaElement
-                t.style.height = 'auto'
-                t.style.height = Math.min(t.scrollHeight, 128) + 'px'
-              }}
-            />
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              onClick={() => setShowCode(!showCode)}
-              className={`p-2 rounded-xl text-sm transition-colors ${
-                showCode ? 'bg-brand text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-              }`}
-              title="Add code snippet">
-              {'</>'}
-            </button>
-            <button
-              onClick={() => send.mutate()}
-              disabled={send.isPending || (!text.trim() && !code.trim())}
-              className="bg-brand text-white p-2 rounded-xl hover:bg-brand-dark transition-colors disabled:opacity-50">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
-              </svg>
-            </button>
-          </div>
-        </div>
-        <p className="text-xs text-gray-400 mt-1.5 px-1">
-                 Enter to send · Shift+Enter for new line
-        </p>
       </div>
     </div>
   )
