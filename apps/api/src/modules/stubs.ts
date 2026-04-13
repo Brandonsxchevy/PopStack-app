@@ -153,7 +153,7 @@ export class LinksModule {}
 // ─── PROFILES ────────────────────────────────────────────────────────────────
 @Injectable() export class ProfilesService {
   constructor(private readonly db: DatabaseService) {}
-  getPublic(username: string) { return this.db.user.findFirst({ where: { name: username }, include: { profile: true, ratingsReceived: { where: { isVisible: true }, orderBy: { createdAt: 'desc' }, take: 10 } } }); }
+  getPublic(username: string) { return this.db.user.findFirst({ where: { name: username, role: 'DEVELOPER' }, include: { profile: true, ratingsReceived: { where: { isVisible: true }, orderBy: { createdAt: 'desc' }, take: 10 } } }); }
   update(userId: string, dto: any) { return this.db.profile.upsert({ where: { userId }, update: dto, create: { userId, ...dto } }); }
 }
 @Controller('profiles') export class ProfilesController {
