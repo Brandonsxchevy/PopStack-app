@@ -1,15 +1,8 @@
 'use client'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useAuthStore } from '@/lib/store'
-import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
-
-const NAV = [
-  { href: '/swipe',    label: 'Feed' },
-  { href: '/inbox',    label: 'Inbox' },
-  { href: '/earnings', label: 'Earnings' },
-]
 
 export default function DeveloperLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -24,25 +17,38 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen flex flex-col">
+      {/* Top nav — logo + logout only */}
       <nav className="bg-dark text-white px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-brand font-bold text-lg">PopStack</span>
-          <span className="text-xs text-gray-500 font-mono hidden sm:block">pop() problems</span>
-        </div>
-        <div className="flex items-center gap-3 shrink-0">
-          {NAV.map(n => (
-            <Link key={n.href} href={n.href}
-              className={`text-sm transition-colors ${pathname.startsWith(n.href) ? 'text-brand font-medium' : 'text-gray-400 hover:text-white'}`}>
-              {n.label}
-            </Link>
-          ))}
-          <button onClick={() => { clearAuth(); router.push('/') }}
-            className="text-sm text-gray-500 hover:text-white transition-colors">
-            Out
-          </button>
-        </div>
+        <Link href="/swipe" className="text-brand font-bold text-lg">
+          PopStack
+        </Link>
+        <button onClick={() => { clearAuth(); router.push('/') }}
+          className="text-sm text-gray-400 hover:text-white transition-colors">
+          Log out
+        </button>
       </nav>
-      <main className="flex-1">{children}</main>
+
+      {/* Page content — add bottom padding so tab bar doesn't cover it */}
+      <main className="flex-1 pb-16">{children}</main>
+
+      {/* Bottom tab bar */}
+      <div className="fixed bottom-0 left-0 right-0 bg-dark border-t border-gray-800 flex z-50">
+        {[
+          { href: '/swipe',    label: 'Feed',     icon: '🔥' },
+          { href: '/inbox',    label: 'Inbox',    icon: '📬' },
+          { href: '/earnings', label: 'Earnings', icon: '💰' },
+        ].map(tab => {
+          const active = pathname.startsWith(tab.href)
+          return (
+            <Link key={tab.href} href={tab.href}
+              className={`flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
+                active ? 'text-brand' : 'text-gray-500 hover:text-gray-300'}`}>
+              <span className="text-lg leading-none">{tab.icon}</span>
+              <span className="text-xs font-medium">{tab.label}</span>
+            </Link>
+          )
+        })}
+      </div>
     </div>
   )
 }
