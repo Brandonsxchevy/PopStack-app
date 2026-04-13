@@ -21,32 +21,47 @@ export class PaymentsController {
   ) {}
 
   @Post('stripe')
-  @HttpCode(200)
-  async handleStripeWebhook(
-    @Req() req: RawBodyRequest<Request>,
-    @Headers('stripe-signature') signature: string,
-  ) {
-    const event = this.payments.constructWebhookEvent(req.rawBody!, signature);
+@HttpCode(200)
+async handleStripeWebhook(
+  @Req() req: RawBodyRequest<Request>,
+  @Headers('stripe-signature') signature: string,
+) {
+  const payload = req.rawBody
+  
+  this.logger.log(`Webhook hit - payload size: ${payload?.length}, sig: ${!!signature}`)
 
-    this.logger.log(`Stripe webhook: ${event.type}`);
-
-    switch (event.type) {
-      case 'checkout.session.completed':
-        await this.handleCheckoutCompleted(event.data.object as any);
-        break;
-      case 'payment_intent.payment_failed':
-        await this.handlePaymentFailed(event.data.object as any);
-        break;
-      case 'invoice.paid':
-        await this.handleInvoicePaid(event.data.object as any);
-        break;
-      case 'customer.subscription.deleted':
-        await this.handleSubscriptionCancelled(event.data.object as any);
-        break;
-    }
-
-    return { received: true };
+  if (!payload) {
+    this.logger.error('No raw body available')
+    return { received: true }
   }
+
+  let event: any
+  try {
+    event = this.payments.constructWebhookEvent(payload, signature)
+  } catch (err: any) {
+    this.logger.error(`Webhook verification failed: ${err.message}`)
+    return { received: true }
+  }
+
+  this.logger.log(`Stripe webhook: ${event.type}`)
+
+  switch (event.type) {
+    case 'checkout.session.completed':
+      await this.handleCheckoutCompleted(event.data.object as any)
+      break
+    case 'payment_intent.payment_failed':
+      await this.handlePaymentFailed(event.data.object as any)
+      break
+    case 'invoice.paid':
+      await this.handleInvoicePaid(event.data.object as any)
+      break
+    case 'customer.subscription.deleted':
+      await this.handleSubscriptionCancelled(event.data.object as any)
+      break
+  }
+
+  return { received: true }
+}
 
   private async handleCheckoutCompleted(checkoutSession: any) {
     const { questionId, userId, tier } = checkoutSession.metadata ?? {};
