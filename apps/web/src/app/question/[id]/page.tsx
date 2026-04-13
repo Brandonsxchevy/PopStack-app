@@ -192,33 +192,67 @@ export default function QuestionPage() {
           </div>
         )}
 
-        {/* Credentials warning */}
-        {response && question.fingerprint && (question.fingerprint.platform !== 'UNKNOWN' || dnsProvider) && (
-          <div className="card border-amber-200 bg-amber-50 mb-4">
-            <div className="flex items-start gap-2">
-              <span className="text-amber-500 text-lg shrink-0">🔑</span>
-              <div>
-                <p className="text-sm font-semibold text-amber-800 mb-1">
-                  You may need to share access credentials
-                </p>
-                <p className="text-xs text-amber-700 mb-2">
-                  To fix this issue, your developer will likely need login access to:
-                </p>
-                <ul className="text-xs text-amber-700 space-y-1">
-                  {question.fingerprint.platform && question.fingerprint.platform !== 'UNKNOWN' && (
-                    <li>• <strong>{question.fingerprint.platform}</strong> admin panel</li>
-                  )}
-                  {dnsProvider && (
-                    <li>• <strong>{dnsProvider}</strong> DNS settings</li>
-                  )}
-                </ul>
-                <p className="text-xs text-amber-600 mt-2">
-                  Have your credentials ready before starting a session.
-                </p>
+       {/* Credentials warning */}
+{response && question.fingerprint && (question.fingerprint.platform !== 'UNKNOWN' || dnsProvider) && (
+  <div className="card border-amber-200 bg-amber-50 mb-4">
+    <div className="flex items-start gap-2">
+      <span className="text-amber-500 text-lg shrink-0">🔑</span>
+      <div className="w-full">
+        <p className="text-sm font-semibold text-amber-800 mb-1">
+          You may need to share access credentials
+        </p>
+        <p className="text-xs text-amber-700 mb-3">
+          To fix this issue, your developer will likely need login access to the following. Don't worry — you stay in control and can revoke access anytime.
+        </p>
+
+        <div className="space-y-3">
+          {question.fingerprint.platform && question.fingerprint.platform !== 'UNKNOWN' && (
+            <div className="bg-white rounded-lg p-3 border border-amber-200">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-sm font-semibold text-amber-900">
+                  {question.fingerprint.platform} Admin Panel
+                </span>
+                <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">CMS</span>
               </div>
+              <p className="text-xs text-gray-600">
+                {question.fingerprint.platform === 'WORDPRESS' && 'Your WordPress dashboard — log in at yoursite.com/wp-admin. You can create a temporary admin account for your developer.'}
+                {question.fingerprint.platform === 'SHOPIFY' && 'Your Shopify admin — log in at yourstore.myshopify.com/admin. You can add staff accounts under Settings → Users.'}
+                {question.fingerprint.platform === 'WIX' && 'Your Wix dashboard — log in at wix.com. You can add a contributor under Settings → Roles & Permissions.'}
+                {question.fingerprint.platform === 'SQUARESPACE' && 'Your Squarespace dashboard — log in at squarespace.com. You can add a contributor under Settings → Permissions.'}
+                {question.fingerprint.platform === 'WEBFLOW' && 'Your Webflow dashboard — log in at webflow.com. You can invite an editor under Project Settings → Members.'}
+                {!['WORDPRESS','SHOPIFY','WIX','SQUARESPACE','WEBFLOW'].includes(question.fingerprint.platform) && 
+                  'Your website admin panel. Ask your developer exactly what access they need before sharing credentials.'}
+              </p>
             </div>
-          </div>
-        )}
+          )}
+
+          {dnsProvider && (
+            <div className="bg-white rounded-lg p-3 border border-amber-200">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-sm font-semibold text-amber-900">
+                  {dnsProvider} DNS Settings
+                </span>
+                <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">DNS</span>
+              </div>
+              <p className="text-xs text-gray-600">
+                DNS controls where your website and email point to. Your developer may need access to add or change DNS records.
+                {dnsProvider.includes('Cloudflare') && ' Log in at cloudflare.com and share access via Multi-User under your account settings.'}
+                {dnsProvider.includes('GoDaddy') && ' Log in at godaddy.com → My Products → DNS to manage records.'}
+                {dnsProvider.includes('Namecheap') && ' Log in at namecheap.com → Domain List → Manage → Advanced DNS.'}
+                {!dnsProvider.includes('Cloudflare') && !dnsProvider.includes('GoDaddy') && !dnsProvider.includes('Namecheap') &&
+                  ' Log in to wherever you registered your domain to access DNS settings.'}
+              </p>
+            </div>
+          )}
+        </div>
+
+        <p className="text-xs text-amber-600 mt-3 font-medium">
+          💡 Never share passwords in chat — use temporary access accounts where possible.
+        </p>
+      </div>
+    </div>
+  </div>
+)}
 
         {/* Paywall */}
         {isLocked && !isActive && response && (
