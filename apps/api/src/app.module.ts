@@ -38,6 +38,7 @@ import {
     ProposalsModule,
     EarningsModule,
     SwipesModule,
+    UploadsModule,
     // Stub modules — implement in order listed in README
     UsersModule,
     ContractsModule,
