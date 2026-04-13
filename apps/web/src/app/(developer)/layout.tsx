@@ -36,7 +36,7 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
           ))}
           <button onClick={() => { clearAuth(); router.push('/') }}
             className="text-sm text-gray-500 hover:text-white transition-colors">
-            Out
+            Logout
           </button>
         </div>
       </nav>
