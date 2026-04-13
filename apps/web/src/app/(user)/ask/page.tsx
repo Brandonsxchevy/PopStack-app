@@ -1,11 +1,12 @@
 'use client'
 import { useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
+import { Suspense } from 'react'
 
 const schema = z.object({
   title: z.string().min(5, 'Please describe the problem in at least 5 characters'),
@@ -13,8 +14,6 @@ const schema = z.object({
   url: z.string().optional(),
   budgetTier: z.enum(['FIVE', 'TWENTY', 'FIFTY_PLUS']),
   urgency: z.enum(['LOW', 'MEDIUM', 'HIGH']),
-}).refine(data => data.url || data.url === undefined, {
-  message: 'Please add a link or screenshot so a Stacker can help you faster',
 })
 
 type FormData = z.infer<typeof schema>
@@ -26,13 +25,17 @@ const BUDGET_OPTIONS = [
 ]
 
 const URGENCY_OPTIONS = [
-  { value: 'LOW',    label: 'Flexible',       desc: 'No rush' },
-  { value: 'MEDIUM', label: 'Soon',           desc: 'Within a day' },
-  { value: 'HIGH',   label: 'Urgent',         desc: 'Customers affected' },
+  { value: 'LOW',    label: 'Flexible',  desc: 'No rush' },
+  { value: 'MEDIUM', label: 'Soon',      desc: 'Within a day' },
+  { value: 'HIGH',   label: 'Urgent',    desc: 'Customers affected' },
 ]
 
-export default function AskPage() {
+function AskForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const devId = searchParams.get('devId')
+  const linkId = searchParams.get('linkId')
+
   const [loading, setLoading] = useState(false)
   const [screenshotKeys, setScreenshotKeys] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
@@ -50,12 +53,9 @@ export default function AskPage() {
     const file = e.target.files?.[0]
     if (!file) return
     if (file.size > 5 * 1024 * 1024) { toast.error('Screenshot must be under 5MB'); return }
-
     setUploading(true)
     try {
-      // Get pre-signed upload URL
       const { data } = await api.get('/uploads/screenshot')
-      // Upload directly to Supabase Storage
       await fetch(data.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } })
       setScreenshotKeys(prev => [...prev, data.key])
       toast.success('Screenshot added')
@@ -71,13 +71,14 @@ export default function AskPage() {
       toast.error('Please add a link or screenshot so a Stacker can help you faster')
       return
     }
-
     setLoading(true)
     try {
       const res = await api.post('/questions', {
         ...data,
         screenshotKeys,
         stackTags: [],
+        preSelectedDevId: devId || undefined,
+        linkId: linkId || undefined,
       })
       toast.success('Request submitted! Stackers will respond soon.')
       router.push(`/question/${res.data.id}`)
@@ -90,6 +91,15 @@ export default function AskPage() {
 
   return (
     <div>
+      {/* Direct link banner */}
+      {devId && (
+        <div className="card bg-brand-light border-brand/20 mb-5">
+          <p className="text-sm text-brand font-medium">
+            🎯 This request will go directly to your developer
+          </p>
+        </div>
+      )}
+
       <h1 className="text-2xl font-semibold text-gray-900 mb-1">Submit a request</h1>
       <p className="text-gray-500 mb-6 text-sm">Show us what's going wrong — a Stacker will pop it fast.</p>
 
@@ -104,13 +114,12 @@ export default function AskPage() {
           {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title.message}</p>}
         </div>
 
-        {/* URL + Screenshot — at least one required */}
+        {/* URL + Screenshot */}
         <div className="card bg-gray-50 space-y-3">
           <p className="text-sm font-medium text-gray-700">
             Show us what you're seeing <span className="text-red-500">*</span>
           </p>
           <p className="text-xs text-gray-500">Add a link or screenshot (at least one required)</p>
-
           <div>
             <label className="text-xs text-gray-600 block mb-1">Your website link</label>
             <input
@@ -123,7 +132,6 @@ export default function AskPage() {
               <p className="text-xs text-brand mt-1">✓ We'll auto-detect your platform</p>
             )}
           </div>
-
           <div>
             <label className="text-xs text-gray-600 block mb-1">Screenshot of the issue</label>
             <label className={`flex items-center gap-2 px-3 py-2 border border-dashed rounded-lg cursor-pointer text-sm transition-colors
@@ -193,5 +201,13 @@ export default function AskPage() {
         </button>
       </form>
     </div>
+  )
+}
+
+export default function AskPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-20 text-gray-400">Loading...</div>}>
+      <AskForm />
+    </Suspense>
   )
 }
