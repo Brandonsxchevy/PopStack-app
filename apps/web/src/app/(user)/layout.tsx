@@ -28,7 +28,11 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
           </Link>
           <Link href="/ask"
             className={`text-sm transition-colors ${pathname === '/ask' ? 'text-brand font-medium' : 'text-gray-500 hover:text-gray-900'}`}>
-            + New
+            + New Question
+          </Link>
+          <Link href="/account"
+          className={`text-sm transition-colors ${pathname === '/account' ? 'text-brand font-medium' : 'text-gray-500 hover:text-gray-900'}`}>
+          Account
           </Link>
           <button onClick={() => { clearAuth(); router.push('/') }}
             className="text-sm text-gray-400 hover:text-gray-700 transition-colors">
