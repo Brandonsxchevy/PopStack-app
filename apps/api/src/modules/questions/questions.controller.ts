@@ -24,6 +24,12 @@ export class QuestionsController {
     return this.questionsService.getFeed(user.id, query);
   }
 
+  @Get('my')
+@Roles('USER')
+getMyQuestions(@CurrentUser() user: any) {
+  return this.questionsService.getMyQuestions(user.id);
+}
+  
   @Get(':id')
   getById(@Param('id') id: string) {
     return this.questionsService.getById(id);
