@@ -27,54 +27,17 @@ const LANGUAGES = [
   { code: 'hi', label: 'Hindi' },
 ]
 
-function TranslateButton({ messageId }: { messageId: string }) {
-  const [translated, setTranslated] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [shown, setShown] = useState(false)
-  const [showLangPicker, setShowLangPicker] = useState(false)
-  const [selectedLang, setSelectedLang] = useState('es')
-
-  const translate = async (lang: string) => {
-    setShowLangPicker(false)
-    if (shown && translated && lang === selectedLang) { setShown(false); return }
-    setLoading(true)
-    try {
-      const res = await api.post(`/messages/${messageId}/translate`, { targetLang: lang })
-      setTranslated(res.data.translatedText)
-      setSelectedLang(lang)
-      setShown(true)
-    } catch {
-      toast.error('Translation failed')
-    } finally {
-      setLoading(false)
-    }
+async function googleTranslate(text: string, targetLang: string): Promise<{ translated: string; detectedLang: string }> {
+  try {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`
+    const res = await fetch(url)
+    const data = await res.json()
+    const translated = data[0]?.map((s: any) => s[0]).join('') || text
+    const detectedLang = data[2] || 'en'
+    return { translated, detectedLang }
+  } catch {
+    return { translated: text, detectedLang: 'en' }
   }
-
-  return (
-    <div className="relative">
-      <button
-        onClick={() => shown ? setShown(false) : setShowLangPicker(!showLangPicker)}
-        disabled={loading}
-        className="text-xs text-gray-400 hover:text-brand transition-colors disabled:opacity-50">
-        {loading ? '...' : '🌐'}
-      </button>
-      {showLangPicker && (
-        <div className="absolute bottom-6 left-0 bg-white border border-gray-200 rounded-xl shadow-lg z-10 py-1 min-w-[120px]">
-          {LANGUAGES.map(lang => (
-            <button key={lang.code} onClick={() => translate(lang.code)}
-              className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-brand-light hover:text-brand transition-colors">
-              {lang.label}
-            </button>
-          ))}
-        </div>
-      )}
-      {shown && translated && (
-        <div className="mt-1 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 max-w-[200px]">
-          {translated}
-        </div>
-      )}
-    </div>
-  )
 }
 
 function QuestionPanel({ thread, session }: { thread: any; session: any }) {
@@ -122,83 +85,57 @@ In 3-4 sentences: summarize the likely problem, what access the developer will n
 
   return (
     <div className="border-b border-gray-200 bg-white">
-      <button
-        onClick={() => setOpen(!open)}
+      <button onClick={() => setOpen(!open)}
         className="w-full px-4 py-2.5 flex items-center justify-between text-sm text-gray-600 hover:bg-gray-50 transition-colors">
         <div className="flex items-center gap-2">
           <span>📋</span>
           <span className="font-medium">Question details</span>
           {fingerprint?.platform && fingerprint.platform !== 'UNKNOWN' && (
-            <span className="text-xs bg-brand-light text-brand px-2 py-0.5 rounded-full">
-              {fingerprint.platform}
-            </span>
+            <span className="text-xs bg-brand-light text-brand px-2 py-0.5 rounded-full">{fingerprint.platform}</span>
           )}
         </div>
         <span className="text-gray-400">{open ? '▲' : '▼'}</span>
       </button>
-
       {open && (
         <div className="px-4 pb-4 max-w-2xl mx-auto">
-          {/* Question info */}
           <div className="space-y-2 mb-3">
             <div>
               <p className="text-xs font-medium text-gray-500 mb-0.5">Problem</p>
               <p className="text-sm text-gray-800">{question.title}</p>
-              {question.description && (
-                <p className="text-xs text-gray-500 mt-1">{question.description}</p>
-              )}
+              {question.description && <p className="text-xs text-gray-500 mt-1">{question.description}</p>}
             </div>
             {question.url && (
               <div>
                 <p className="text-xs font-medium text-gray-500 mb-0.5">Website</p>
-                <a href={question.url} target="_blank" rel="noopener noreferrer"
-                  className="text-xs text-brand underline">{question.url}</a>
+                <a href={question.url} target="_blank" rel="noopener noreferrer" className="text-xs text-brand underline">{question.url}</a>
               </div>
             )}
             {fingerprint && (
               <div className="flex flex-wrap gap-2">
                 {fingerprint.platform && fingerprint.platform !== 'UNKNOWN' && (
                   <div className="text-xs bg-gray-100 px-2 py-1 rounded-lg">
-                    <span className="text-gray-500">Platform:</span>{' '}
-                    <span className="text-gray-800 font-medium">{fingerprint.platform}</span>
+                    <span className="text-gray-500">Platform:</span> <span className="text-gray-800 font-medium">{fingerprint.platform}</span>
                   </div>
                 )}
                 {fingerprint.signals?.filter((s: any) => s.signal?.startsWith('dns_provider:')).map((s: any) => (
                   <div key={s.signal} className="text-xs bg-gray-100 px-2 py-1 rounded-lg">
-                    <span className="text-gray-500">DNS:</span>{' '}
-                    <span className="text-gray-800 font-medium">
-                      {s.signal.replace('dns_provider: ', '')}
-                    </span>
+                    <span className="text-gray-500">DNS:</span> <span className="text-gray-800 font-medium">{s.signal.replace('dns_provider: ', '')}</span>
                   </div>
                 ))}
-                {fingerprint.clarityScore && (
-                  <div className="text-xs bg-gray-100 px-2 py-1 rounded-lg">
-                    <span className="text-gray-500">Clarity:</span>{' '}
-                    <span className="text-gray-800 font-medium">{fingerprint.clarityScore}%</span>
-                  </div>
-                )}
               </div>
             )}
             {session && (
-              <div className="text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded-lg inline-block">
-                {TIER_LABELS[session.tier]}
-              </div>
+              <div className="text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded-lg inline-block">{TIER_LABELS[session.tier]}</div>
             )}
           </div>
-
-          {/* AI Summary */}
           <div className="border-t border-gray-100 pt-3">
             {summary ? (
               <div className="bg-brand-light rounded-xl p-3">
-                <div className="flex items-center gap-1.5 mb-2">
-                  <span className="text-xs font-semibold text-brand">✨ AI Summary</span>
-                </div>
+                <span className="text-xs font-semibold text-brand block mb-2">✨ AI Summary</span>
                 <p className="text-xs text-gray-700 leading-relaxed">{summary}</p>
               </div>
             ) : (
-              <button
-                onClick={getSummary}
-                disabled={loadingSummary}
+              <button onClick={getSummary} disabled={loadingSummary}
                 className="w-full py-2 rounded-xl border border-brand/30 text-brand text-xs font-medium hover:bg-brand-light transition-colors disabled:opacity-50">
                 {loadingSummary ? '✨ Generating summary...' : '✨ Get AI summary'}
               </button>
@@ -220,6 +157,12 @@ export default function ThreadPage() {
   const [text, setText] = useState('')
   const [code, setCode] = useState('')
   const [showCode, setShowCode] = useState(false)
+  const [translateMode, setTranslateMode] = useState(false)
+  const [devLang, setDevLang] = useState('en')
+  const [showLangPicker, setShowLangPicker] = useState(false)
+  const [translations, setTranslations] = useState<Record<string, string>>({})
+  const [detectedUserLang, setDetectedUserLang] = useState<string | null>(null)
+  const [translating, setTranslating] = useState(false)
 
   const { data: thread, isLoading } = useQuery({
     queryKey: ['thread', id],
@@ -243,6 +186,61 @@ export default function ThreadPage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  useEffect(() => {
+    if (!translateMode || !messages.length) return
+    translateAllMessages()
+  }, [translateMode, messages.length])
+
+  const getMessageText = (msg: any): string => {
+    if (!Array.isArray(msg.blocks)) return ''
+    return msg.blocks
+      .filter((b: any) => b.type === 'text')
+      .map((b: any) => typeof b.content === 'string' ? b.content : b.content?.content?.[0]?.content?.[0]?.text || '')
+      .join(' ')
+  }
+
+  const translateAllMessages = async () => {
+    setTranslating(true)
+    const newTranslations: Record<string, string> = {}
+    let detectedLang: string | null = null
+
+    for (const msg of messages) {
+      if (msg.type === 'SYSTEM_EVENT') continue
+      const isFromOther = msg.senderId !== user?.id
+      const msgText = getMessageText(msg)
+      if (!msgText) continue
+      if (isFromOther) {
+        const result = await googleTranslate(msgText, devLang)
+        newTranslations[msg.id] = result.translated
+        if (!detectedLang) detectedLang = result.detectedLang
+      }
+    }
+
+    if (detectedLang) setDetectedUserLang(detectedLang)
+    setTranslations(newTranslations)
+    setTranslating(false)
+  }
+
+  const enableTranslation = async (lang: string) => {
+    setDevLang(lang)
+    setTranslateMode(true)
+    setShowLangPicker(false)
+  }
+
+  const disableTranslation = () => {
+    setTranslateMode(false)
+    setTranslations({})
+    setDetectedUserLang(null)
+  }
+
+  const handleSend = async () => {
+    const blocks: any[] = []
+    if (text.trim()) blocks.push({ type: 'text', content: text.trim() })
+    if (showCode && code.trim()) blocks.push({ type: 'code', content: code.trim() })
+    if (!blocks.length) return
+    send.mutate()
+  }
 
   const accept = useMutation({
     mutationFn: () => api.post(`/sessions/${thread.sessionId}/accept`),
@@ -306,7 +304,7 @@ export default function ThreadPage() {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      send.mutate()
+      handleSend()
     }
   }
 
@@ -333,56 +331,92 @@ export default function ThreadPage() {
     <div className="min-h-screen flex flex-col bg-gray-50">
       {/* Nav */}
       <nav className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3">
-        <button onClick={() => router.back()}
-          className="text-gray-400 hover:text-gray-600 transition-colors">
-          ←
-        </button>
+        <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-600 transition-colors">←</button>
         <div className="flex-1 min-w-0">
           <div className="font-medium text-gray-900 truncate">{questionTitle}</div>
           <div className="text-xs text-gray-500">with {otherPerson?.name || '...'}</div>
         </div>
-        <Link href={isDev ? '/inbox' : '/dashboard'}
-          className="text-brand font-bold text-lg shrink-0">PS</Link>
+
+        {/* Translate toggle — dev only */}
+        {isDev && (
+          <div className="relative">
+            {translateMode ? (
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-brand font-medium">
+                  🌐 {LANGUAGES.find(l => l.code === devLang)?.label}
+                  {detectedUserLang && (
+                    <span className="text-gray-400 ml-1">↔ {LANGUAGES.find(l => l.code === detectedUserLang)?.label || detectedUserLang}</span>
+                  )}
+                </span>
+                <button onClick={disableTranslation}
+                  className="text-xs text-red-400 hover:text-red-600 border border-red-200 px-2 py-0.5 rounded-lg">
+                  Off
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => setShowLangPicker(!showLangPicker)}
+                className="text-xs text-gray-500 hover:text-brand border border-gray-200 px-2 py-1 rounded-lg transition-colors">
+                🌐 Translate
+              </button>
+            )}
+            {showLangPicker && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowLangPicker(false)} />
+                <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-xl shadow-xl z-50 py-1 min-w-[140px]">
+                  <p className="text-xs text-gray-400 px-3 py-1.5 border-b border-gray-100">Translate chat to</p>
+                  {LANGUAGES.map(lang => (
+                    <button key={lang.code} onClick={() => enableTranslation(lang.code)}
+                      className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-brand-light hover:text-brand transition-colors">
+                      {lang.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        <Link href={isDev ? '/inbox' : '/dashboard'} className="text-brand font-bold text-lg shrink-0">PS</Link>
       </nav>
 
       {/* Question context panel — dev only */}
-      {isDev && (
-        <QuestionPanel thread={thread} session={session} />
+      {isDev && <QuestionPanel thread={thread} session={session} />}
+
+      {/* Translation status bar */}
+      {isDev && translateMode && (
+        <div className="bg-blue-50 border-b border-blue-200 px-4 py-1.5 text-center">
+          <span className="text-xs text-blue-700">
+            {translating
+              ? '🌐 Translating messages...'
+              : `🌐 Showing translations in ${LANGUAGES.find(l => l.code === devLang)?.label}${detectedUserLang ? ` · User writes in ${LANGUAGES.find(l => l.code === detectedUserLang)?.label || detectedUserLang}` : ''}`}
+          </span>
+        </div>
       )}
 
-      {/* Session banner — developer accept/decline */}
+      {/* Session banners */}
       {isDev && isPendingAccept && session && (
         <div className="bg-amber-50 border-b border-amber-200 px-4 py-3">
-          <div className="max-w-2xl mx-auto">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-amber-800 mb-0.5">New session request</p>
-                <p className="text-xs text-amber-700">
-                  {TIER_LABELS[session.tier]} · from {thread.user?.name}
-                </p>
-                {session.question?.url && (
-                  <a href={session.question.url} target="_blank" rel="noopener noreferrer"
-                    className="text-xs text-brand underline mt-1 block truncate">
-                    {session.question.url}
-                  </a>
-                )}
-              </div>
-              <div className="flex gap-2 shrink-0">
-                <button onClick={() => decline.mutate()} disabled={decline.isPending}
-                  className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50">
-                  Decline
-                </button>
-                <button onClick={() => accept.mutate()} disabled={accept.isPending}
-                  className="px-3 py-1.5 rounded-lg bg-brand text-white text-sm font-medium hover:bg-brand-dark transition-colors disabled:opacity-50">
-                  {accept.isPending ? 'Accepting...' : 'Accept ✓'}
-                </button>
-              </div>
+          <div className="max-w-2xl mx-auto flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-amber-800 mb-0.5">New session request</p>
+              <p className="text-xs text-amber-700">{TIER_LABELS[session.tier]} · from {thread.user?.name}</p>
+              {session.question?.url && (
+                <a href={session.question.url} target="_blank" rel="noopener noreferrer"
+                  className="text-xs text-brand underline mt-1 block truncate">{session.question.url}</a>
+              )}
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button onClick={() => decline.mutate()} disabled={decline.isPending}
+                className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 text-sm font-medium hover:bg-gray-50 disabled:opacity-50">Decline</button>
+              <button onClick={() => accept.mutate()} disabled={accept.isPending}
+                className="px-3 py-1.5 rounded-lg bg-brand text-white text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
+                {accept.isPending ? 'Accepting...' : 'Accept ✓'}
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Session active banner */}
       {isActive && (
         <div className="bg-green-50 border-b border-green-200 px-4 py-2">
           <div className="max-w-2xl mx-auto flex items-center justify-between">
@@ -393,7 +427,7 @@ export default function ThreadPage() {
             </div>
             {isDev && (
               <button onClick={() => complete.mutate()} disabled={complete.isPending}
-                className="text-xs text-green-700 font-medium border border-green-300 px-2 py-1 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50">
+                className="text-xs text-green-700 font-medium border border-green-300 px-2 py-1 rounded-lg hover:bg-green-100 disabled:opacity-50">
                 {complete.isPending ? '...' : 'Mark complete'}
               </button>
             )}
@@ -401,7 +435,6 @@ export default function ThreadPage() {
         </div>
       )}
 
-      {/* Session ended banner */}
       {isEnded && (
         <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
           <div className="max-w-2xl mx-auto flex items-center justify-between">
@@ -410,7 +443,7 @@ export default function ThreadPage() {
             </span>
             {!isDev && (
               <button onClick={() => approve.mutate()} disabled={approve.isPending}
-                className="text-sm bg-brand text-white font-medium px-3 py-1.5 rounded-lg hover:bg-brand-dark transition-colors disabled:opacity-50 shrink-0">
+                className="text-sm bg-brand text-white font-medium px-3 py-1.5 rounded-lg hover:bg-brand-dark disabled:opacity-50 shrink-0">
                 {approve.isPending ? '...' : 'Approve & pay ✓'}
               </button>
             )}
@@ -445,16 +478,15 @@ export default function ThreadPage() {
               </div>
             )
 
+            const translatedText = translations[msg.id]
+            const showTranslation = translateMode && !isMe && translatedText
+
             return (
               <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[75%] flex flex-col gap-1 ${isMe ? 'items-end' : 'items-start'}`}>
-                  {!isMe && (
-                    <span className="text-xs text-gray-400 px-1">{otherPerson?.name}</span>
-                  )}
+                  {!isMe && <span className="text-xs text-gray-400 px-1">{otherPerson?.name}</span>}
                   <div className={`rounded-2xl px-4 py-2.5 ${
-                    isMe
-                      ? 'bg-brand text-white rounded-tr-sm'
-                      : 'bg-white border border-gray-200 text-gray-900 rounded-tl-sm'
+                    isMe ? 'bg-brand text-white rounded-tr-sm' : 'bg-white border border-gray-200 text-gray-900 rounded-tl-sm'
                   }`}>
                     {Array.isArray(msg.blocks) && msg.blocks.map((block: any, i: number) => (
                       <div key={i}>
@@ -465,23 +497,22 @@ export default function ThreadPage() {
                           }</p>
                         )}
                         {block.type === 'code' && (
-                          <pre className={`text-xs p-2 rounded-lg mt-1 overflow-x-auto font-mono ${
-                            isMe ? 'bg-white/10' : 'bg-gray-900 text-green-400'
-                          }`}>
+                          <pre className={`text-xs p-2 rounded-lg mt-1 overflow-x-auto font-mono ${isMe ? 'bg-white/10' : 'bg-gray-900 text-green-400'}`}>
                             {block.content}
                           </pre>
                         )}
                       </div>
                     ))}
-                  </div>
-                  <div className="flex items-center gap-2 px-1">
-                    <span className="text-xs text-gray-400">
-                      {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                    {!isMe && msg.type !== 'SYSTEM_EVENT' && (
-                      <TranslateButton messageId={msg.id} />
+                    {showTranslation && (
+                      <div className="mt-2 pt-2 border-t border-gray-100">
+                        <p className="text-xs text-brand font-medium mb-0.5">🌐 Translation</p>
+                        <p className="text-sm leading-relaxed text-gray-700">{translatedText}</p>
+                      </div>
                     )}
                   </div>
+                  <span className="text-xs text-gray-400 px-1">
+                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 </div>
               </div>
             )
@@ -493,34 +524,26 @@ export default function ThreadPage() {
       {/* Input */}
       <div className="bg-white border-t border-gray-200 p-3 max-w-2xl mx-auto w-full">
         {isDev && isPendingAccept ? (
-          <p className="text-sm text-gray-400 text-center py-2">
-            Accept the session to start messaging
-          </p>
+          <p className="text-sm text-gray-400 text-center py-2">Accept the session to start messaging</p>
         ) : (
           <>
             {showCode && (
               <div className="mb-2">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs text-gray-500">Code snippet</span>
-                  <button onClick={() => { setShowCode(false); setCode('') }}
-                    className="text-xs text-red-400 hover:text-red-600">Remove</button>
+                  <button onClick={() => { setShowCode(false); setCode('') }} className="text-xs text-red-400 hover:text-red-600">Remove</button>
                 </div>
-                <textarea
-                  value={code}
-                  onChange={e => setCode(e.target.value)}
+                <textarea value={code} onChange={e => setCode(e.target.value)}
                   className="w-full bg-gray-900 text-green-400 text-xs font-mono p-2 rounded-lg border-0 focus:outline-none focus:ring-1 focus:ring-brand min-h-[80px] resize-none"
-                  placeholder="// paste code here"
-                />
+                  placeholder="// paste code here" />
               </div>
             )}
             <div className="flex items-end gap-2">
               <div className="flex-1">
-                <textarea
-                  value={text}
-                  onChange={e => setText(e.target.value)}
+                <textarea value={text} onChange={e => setText(e.target.value)}
                   onKeyDown={handleKeyDown}
                   className="w-full border border-gray-300 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand resize-none max-h-32"
-                  placeholder="Type a message... (Enter to send)"
+                  placeholder={isDev && translateMode && detectedUserLang ? `Type in ${LANGUAGES.find(l => l.code === devLang)?.label} — sends in both languages` : 'Type a message... (Enter to send)'}
                   rows={1}
                   onInput={e => {
                     const t = e.target as HTMLTextAreaElement
@@ -530,16 +553,12 @@ export default function ThreadPage() {
                 />
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => setShowCode(!showCode)}
-                  className={`p-2 rounded-xl text-sm transition-colors ${
-                    showCode ? 'bg-brand text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                  }`}
+                <button onClick={() => setShowCode(!showCode)}
+                  className={`p-2 rounded-xl text-sm transition-colors ${showCode ? 'bg-brand text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
                   title="Add code snippet">
                   {'</>'}
                 </button>
-                <button
-                  onClick={() => send.mutate()}
+                <button onClick={handleSend}
                   disabled={send.isPending || (!text.trim() && !code.trim())}
                   className="bg-brand text-white p-2 rounded-xl hover:bg-brand-dark transition-colors disabled:opacity-50">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
@@ -548,9 +567,7 @@ export default function ThreadPage() {
                 </button>
               </div>
             </div>
-            <p className="text-xs text-gray-400 mt-1.5 px-1">
-              Enter to send · Shift+Enter for new line
-            </p>
+            <p className="text-xs text-gray-400 mt-1.5 px-1">Enter to send · Shift+Enter for new line</p>
           </>
         )}
       </div>
