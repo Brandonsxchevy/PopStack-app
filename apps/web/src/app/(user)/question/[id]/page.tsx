@@ -1,32 +1,47 @@
 'use client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 
-const TIER_LABELS = { FIVE: '$7.50 — Quick follow-up', TWENTY: '$30.00 — 15 min session', FIFTY_PLUS: '$75+ — Full solution' }
+const TIER_LABELS = {
+  FIVE: '$7.50 — Quick follow-up',
+  TWENTY: '$30.00 — 15 min session',
+  FIFTY_PLUS: '$75+ — Full solution'
+}
 
 export default function QuestionPage() {
   const { id } = useParams()
+  const router = useRouter()
   const qc = useQueryClient()
   const [selectedTier, setSelectedTier] = useState('TWENTY')
 
-  const { data: question, isLoading: qLoading } = useQuery({
+  const { data: question, isLoading } = useQuery({
     queryKey: ['question', id],
     queryFn: () => api.get(`/questions/${id}`).then(r => r.data),
   })
 
   const startSession = useMutation({
     mutationFn: () => api.post('/sessions', { questionId: id, tier: selectedTier }),
-    onSuccess: (res) => {
+    onSuccess: () => {
       toast.success('Session started — waiting for developer to accept')
       qc.invalidateQueries({ queryKey: ['question', id] })
     },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to start session'),
   })
 
-  if (qLoading) return <div className="text-center py-20 text-gray-400">Loading...</div>
+  const deleteQuestion = useMutation({
+    mutationFn: () => api.delete(`/questions/${id}`),
+    onSuccess: () => {
+      toast.success('Request deleted')
+      qc.invalidateQueries({ queryKey: ['my-questions'] })
+      router.push('/dashboard')
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Cannot delete this request'),
+  })
+
+  if (isLoading) return <div className="text-center py-20 text-gray-400">Loading...</div>
   if (!question) return <div className="text-center py-20 text-gray-500">Question not found</div>
 
   const response = question.responses?.[0]
@@ -69,8 +84,6 @@ export default function QuestionPage() {
               <span className="text-xs text-amber-600">★ {response.developer.avgRating.toFixed(1)}</span>
             )}
           </div>
-
-          {/* Render text blocks */}
           {Array.isArray(response.blocks) && response.blocks.map((block: any, i: number) => (
             <div key={i}>
               {block.type === 'text' && (
@@ -86,7 +99,6 @@ export default function QuestionPage() {
               )}
             </div>
           ))}
-
           {response.offerPriceCents && (
             <div className="mt-3 pt-3 border-t border-green-200 text-xs text-gray-600">
               Offer: <strong>${(response.offerPriceCents / 100).toFixed(2)}</strong>
@@ -115,7 +127,7 @@ export default function QuestionPage() {
             onClick={() => startSession.mutate()}
             disabled={startSession.isPending}
             className="btn-primary w-full py-3 disabled:opacity-50">
-            {startSession.isPending ? 'Starting...' : `Start session`}
+            {startSession.isPending ? 'Starting...' : 'Start session'}
           </button>
           <p className="text-xs text-gray-400 text-center mt-2">
             Payment is held safely — only released when you approve the work
@@ -139,6 +151,20 @@ export default function QuestionPage() {
             Developers are reviewing your request. You'll be notified when someone responds.
           </p>
         </div>
+      )}
+
+      {/* Delete button */}
+      {['OPEN', 'LOCKED'].includes(question.status) && (
+        <button
+          onClick={() => {
+            if (confirm('Delete this request? This cannot be undone.')) {
+              deleteQuestion.mutate()
+            }
+          }}
+          disabled={deleteQuestion.isPending}
+          className="mt-6 text-sm text-red-400 hover:text-red-600 transition-colors disabled:opacity-50 block mx-auto">
+          {deleteQuestion.isPending ? 'Deleting...' : 'Delete this request'}
+        </button>
       )}
     </div>
   )
