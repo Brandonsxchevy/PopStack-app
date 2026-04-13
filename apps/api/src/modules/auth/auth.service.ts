@@ -16,7 +16,6 @@ export class AuthService {
   async register(dto: RegisterDto) {
     const existing = await this.db.user.findUnique({ where: { email: dto.email } });
     if (existing) throw new ConflictException('Email already registered');
-
     const passwordHash = await bcrypt.hash(dto.password, 12);
     const user = await this.db.user.create({
       data: {
@@ -28,7 +27,6 @@ export class AuthService {
       },
       select: { id: true, email: true, name: true, role: true },
     });
-
     return { message: 'Account created', user };
   }
 
@@ -36,25 +34,8 @@ export class AuthService {
     const user = await this.db.user.findUnique({ where: { email } });
     if (!user) throw new UnauthorizedException('Invalid credentials');
     if (!user.isActive) throw new UnauthorizedException('Account suspended');
-
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
-
-    async changePassword(userId: string, currentPassword: string, newPassword: string) {
-  const user = await this.db.user.findUnique({ where: { id: userId } });
-  if (!user) throw new UnauthorizedException();
-
-  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
-  if (!valid) throw new UnauthorizedException('Current password is incorrect');
-
-  const passwordHash = await bcrypt.hash(newPassword, 12);
-  await this.db.user.update({
-    where: { id: userId },
-    data: { passwordHash },
-  });
-
-    return { message: 'Password changed successfully' };
-  }
     return this.generateTokens(user);
   }
 
@@ -64,19 +45,29 @@ export class AuthService {
     return this.generateTokens(user);
   }
 
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.db.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException();
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) throw new UnauthorizedException('Current password is incorrect');
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.db.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+    return { message: 'Password changed successfully' };
+  }
+
   private generateTokens(user: any) {
     const payload = { sub: user.id, email: user.email, role: user.role };
-
     const accessToken = this.jwt.sign(payload, {
       secret: this.config.get('JWT_SECRET'),
       expiresIn: this.config.get('JWT_EXPIRES_IN', '15m'),
     });
-
     const refreshToken = this.jwt.sign(payload, {
       secret: this.config.get('JWT_REFRESH_SECRET'),
       expiresIn: this.config.get('JWT_REFRESH_EXPIRES_IN', '7d'),
     });
-
     return {
       accessToken,
       refreshToken,
