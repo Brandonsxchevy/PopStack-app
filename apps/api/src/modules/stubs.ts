@@ -89,8 +89,7 @@ export class RatingsModule {}
       if (role === 'DEVELOPER') where.devSection = section.toUpperCase();
       else where.userSection = section.toUpperCase();
     }
-    return this.db.thread.findMany({ where, include: { question: { select: { title: true, clarityScore: true, fingerprint: true } } }, orderBy: { lastMessageAt: 'desc' } });
-  }
+   return this.db.thread.findMany({ where, include: { question: { select: { title: true, clarityScore: true, fingerprint: true } } }, orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }] });  }
   getThread(id: string) { return this.db.thread.findUnique({ where: { id }, include: { messages: { orderBy: { createdAt: 'asc' }, take: 30 }, user: { select: { id: true, name: true } }, developer: { select: { id: true, name: true } }, question: { select: { id: true, title: true, url: true } } } }); }
 }
 @Controller('threads') @UseGuards(JwtAuthGuard) export class ThreadsController {
