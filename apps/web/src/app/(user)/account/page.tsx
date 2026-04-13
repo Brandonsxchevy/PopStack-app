@@ -5,9 +5,21 @@ import { api } from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
 import { toast } from 'sonner'
 
+const LANGUAGES = [
+  { code: 'en', label: 'English' },
+  { code: 'es', label: 'Spanish' },
+  { code: 'fr', label: 'French' },
+  { code: 'pt', label: 'Portuguese' },
+  { code: 'zh', label: 'Chinese' },
+  { code: 'ja', label: 'Japanese' },
+  { code: 'ar', label: 'Arabic' },
+  { code: 'hi', label: 'Hindi' },
+]
+
 export default function AccountPage() {
   const { user, clearAuth } = useAuthStore()
   const [name, setName] = useState(user?.name || '')
+  const [preferredLanguage, setPreferredLanguage] = useState(user?.preferredLanguage || 'en')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
@@ -15,7 +27,7 @@ export default function AccountPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
 
   const updateProfile = useMutation({
-    mutationFn: () => api.patch('/profiles/me', { name }),
+    mutationFn: () => api.patch('/profiles/me', { name, preferredLanguage }),
     onSuccess: () => toast.success('Profile updated!'),
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to update'),
   })
@@ -102,11 +114,20 @@ export default function AccountPage() {
             <input value={user?.email || ''} disabled className="input bg-gray-50 text-gray-400 cursor-not-allowed" />
             <p className="text-xs text-gray-400 mt-1">Email cannot be changed</p>
           </div>
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">Preferred language</label>
+            <select value={preferredLanguage} onChange={e => setPreferredLanguage(e.target.value)} className="input">
+              {LANGUAGES.map(l => (
+                <option key={l.code} value={l.code}>{l.label}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">Messages in chat will be auto-translated to this language</p>
+          </div>
         </div>
 
         <button
           onClick={() => updateProfile.mutate()}
-          disabled={updateProfile.isPending || name === user?.name}
+          disabled={updateProfile.isPending}
           className="btn-primary w-full py-2.5 mt-4 disabled:opacity-50">
           {updateProfile.isPending ? 'Saving...' : 'Save changes'}
         </button>
