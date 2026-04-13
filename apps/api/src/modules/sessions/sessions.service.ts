@@ -8,7 +8,10 @@ const TIER_AMOUNTS: Record<string, number> = {
   QUICK_FOLLOWUP: 750,
   FIFTEEN_MIN:    3000,
   FULL_SOLUTION:  7500,
-};
+  FIVE:           750,
+  TWENTY:         3000,
+  FIFTY_PLUS:     7500,
+}
 
 const TIER_SECONDS: Record<string, number> = {
   QUICK_FOLLOWUP: 0,
@@ -20,7 +23,10 @@ const TIER_LABELS: Record<string, string> = {
   QUICK_FOLLOWUP: 'Quick follow-up',
   FIFTEEN_MIN:    '15 min session',
   FULL_SOLUTION:  'Full solution',
-};
+  FIVE:           'Quick follow-up',
+  TWENTY:         '15 min session',
+  FIFTY_PLUS:     'Full solution',
+}
 
 @Injectable()
 export class SessionsService {
