@@ -132,6 +132,7 @@ export class QuestionsService {
             developer: { select: { id: true, name: true, avgRating: true, badges: true } },
           },
         },
+        thread: { select: { id: true } },
       },
     });
   }
