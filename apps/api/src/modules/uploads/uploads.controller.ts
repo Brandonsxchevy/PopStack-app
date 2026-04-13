@@ -13,4 +13,9 @@ export class UploadsController {
   getScreenshotUploadUrl(@CurrentUser() user: any) {
     return this.uploadsService.getScreenshotUploadUrl(user.id);
   }
+
+  @Get('avatar')
+  getAvatarUploadUrl(@CurrentUser() user: any) {
+    return this.uploadsService.getAvatarUploadUrl(user.id);
+  }
 }
