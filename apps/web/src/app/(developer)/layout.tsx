@@ -9,6 +9,7 @@ const NAV = [
   { href: '/inbox',    label: 'Inbox',    icon: '📬' },
   { href: '/earnings', label: 'Earnings', icon: '💰' },
   { href: '/profile',  label: 'Profile',  icon: '👤' },
+  { href: '/links', label: 'Links', icon: '🔗' },
 ]
 
 export default function DeveloperLayout({ children }: { children: React.ReactNode }) {
