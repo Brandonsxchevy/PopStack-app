@@ -15,7 +15,6 @@ const STATUS_STYLES: Record<string, string> = {
 const SECTION_LABELS = [
   { key: 'NEW_REQUESTS',     label: 'New requests',       color: 'text-blue-600' },
   { key: 'AWAITING_PAYMENT', label: 'Pending acceptance', color: 'text-amber-600' },
-  { key: 'ACTIVE_WORK',      label: 'Active work',        color: 'text-green-600' },
   { key: 'BLOCKED',          label: 'Blocked',            color: 'text-red-500' },
   { key: 'COMPLETED',        label: 'Completed',          color: 'text-gray-400' },
 ]
@@ -35,7 +34,10 @@ export default function InboxPage() {
     <div className="text-center py-20 text-gray-400">Loading inbox...</div>
   )
 
-  if (threads.length === 0) return (
+  // Exclude ACTIVE_WORK — those go to the Active tab
+  const inboxThreads = threads.filter((t: any) => t.devSection !== 'ACTIVE_WORK')
+
+  if (inboxThreads.length === 0) return (
     <div className="text-center py-20 max-w-sm mx-auto">
       <div className="text-5xl mb-4">📭</div>
       <h2 className="text-xl font-semibold mb-2 text-gray-800">Inbox is empty</h2>
@@ -46,7 +48,7 @@ export default function InboxPage() {
 
   const grouped = SECTION_LABELS.map(s => ({
     ...s,
-    threads: threads.filter((t: any) => t.devSection === s.key),
+    threads: inboxThreads.filter((t: any) => t.devSection === s.key),
   })).filter(g => g.threads.length > 0)
 
   return (
@@ -54,8 +56,8 @@ export default function InboxPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Inbox</h1>
-          {counts?.total > 0 && (
-            <p className="text-sm text-gray-500 mt-0.5">{counts.unread} unread</p>
+          {counts?.pending > 0 && (
+            <p className="text-sm text-gray-500 mt-0.5">{counts.pending} awaiting acceptance</p>
           )}
         </div>
         <Link href="/swipe" className="btn-secondary px-4 py-2 text-sm">+ Find work</Link>
@@ -91,9 +93,7 @@ export default function InboxPage() {
                         {thread.status.replace(/_/g, ' ').toLowerCase()}
                       </span>
                       {thread.user?.name && (
-                        <span className="text-xs text-gray-400">
-                          {thread.user.name}
-                        </span>
+                        <span className="text-xs text-gray-400">{thread.user.name}</span>
                       )}
                     </div>
                   </div>
