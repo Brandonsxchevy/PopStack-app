@@ -162,7 +162,13 @@ export class LinksModule {}
 @Injectable() export class ProfilesService {
   constructor(private readonly db: DatabaseService) {}
   getPublic(username: string) { return this.db.user.findFirst({ where: { name: username, role: 'DEVELOPER' }, include: { profile: true, ratingsReceived: { where: { isVisible: true }, orderBy: { createdAt: 'desc' }, take: 10 } } }); }
-  update(userId: string, dto: any) { return this.db.profile.upsert({ where: { userId }, update: dto, create: { userId, ...dto } }); }
+  async update(userId: string, dto: any) {
+    const { preferredLanguage, name, ...profileData } = dto;
+    if (preferredLanguage || name) {
+      await this.db.user.update({ where: { id: userId }, data: { ...(preferredLanguage && { preferredLanguage }), ...(name && { name }) } });
+    }
+    return this.db.profile.upsert({ where: { userId }, update: profileData, create: { userId, ...profileData } });
+  }
 }
 @Controller('profiles') export class ProfilesController {
   constructor(private readonly profiles: ProfilesService) {}
