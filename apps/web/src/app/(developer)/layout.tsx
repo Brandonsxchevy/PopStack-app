@@ -9,6 +9,7 @@ import { api } from '@/lib/api'
 const NAV = [
   { href: '/swipe',    label: 'Feed',     icon: '🔥' },
   { href: '/inbox',    label: 'Inbox',    icon: '📬' },
+  { href: '/active',   label: 'Active',   icon: '⚡' },
   { href: '/earnings', label: 'Earnings', icon: '💰' },
   { href: '/profile',  label: 'Profile',  icon: '👤' },
   { href: '/links',    label: 'Links',    icon: '🔗' },
@@ -33,6 +34,7 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
   })
 
   const inboxBadge = (counts?.unread || 0) + (counts?.pending || 0)
+  const activeBadge = counts?.active || 0
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -46,7 +48,8 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
         <div className="hidden sm:flex items-center gap-1">
           {NAV.map(tab => {
             const active = pathname.startsWith(tab.href)
-            const showBadge = tab.href === '/inbox' && inboxBadge > 0
+            const showBadge = (tab.href === '/inbox' && inboxBadge > 0) || (tab.href === '/active' && activeBadge > 0)
+            const badge = tab.href === '/inbox' ? inboxBadge : activeBadge
             return (
               <Link key={tab.href} href={tab.href}
                 className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
@@ -57,7 +60,7 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
                 <span>{tab.label}</span>
                 {showBadge && (
                   <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">
-                    {inboxBadge > 9 ? '9+' : inboxBadge}
+                    {badge > 9 ? '9+' : badge}
                   </span>
                 )}
               </Link>
@@ -77,7 +80,8 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
       <div className="fixed bottom-0 left-0 right-0 bg-dark border-t border-gray-800 flex z-50 sm:hidden">
         {NAV.map(tab => {
           const active = pathname.startsWith(tab.href)
-          const showBadge = tab.href === '/inbox' && inboxBadge > 0
+          const showBadge = (tab.href === '/inbox' && inboxBadge > 0) || (tab.href === '/active' && activeBadge > 0)
+          const badge = tab.href === '/inbox' ? inboxBadge : activeBadge
           return (
             <Link key={tab.href} href={tab.href}
               className={`relative flex-1 flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
@@ -86,7 +90,7 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
               <span className="text-xs font-medium">{tab.label}</span>
               {showBadge && (
                 <span className="absolute top-1 right-1/4 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">
-                  {inboxBadge > 9 ? '9+' : inboxBadge}
+                  {badge > 9 ? '9+' : badge}
                 </span>
               )}
             </Link>
