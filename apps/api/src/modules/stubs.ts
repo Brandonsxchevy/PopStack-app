@@ -23,7 +23,7 @@ export class UsersModule {}
 @Injectable() export class ContractsService {
   constructor(private readonly db: DatabaseService) {}
   create(userId: string, dto: any) { return this.db.contract.create({ data: { ...dto, userId, status: 'DRAFT' } }); }
-  update(userId: string, dto: any) {return this.db.profile.upsert({ where: { userId }, update: dto, create: { userId, ...dto } }); }
+  update(id: string, dto: any) { return this.db.contract.update({ where: { id }, data: dto }); }
   sign(id: string, _userId: string) { return this.db.contract.update({ where: { id }, data: { status: 'SIGNED' } }); }
 }
 @Controller('contracts') @UseGuards(JwtAuthGuard, RolesGuard) export class ContractsController {
@@ -154,7 +154,7 @@ export class LinksModule {}
 @Injectable() export class ProfilesService {
   constructor(private readonly db: DatabaseService) {}
   getPublic(username: string) { return this.db.user.findFirst({ where: { name: username }, include: { profile: true, ratingsReceived: { where: { isVisible: true }, orderBy: { createdAt: 'desc' }, take: 10 } } }); }
-  update(userId: string, dto: any) { return this.db.profile.update({ where: { userId }, data: dto }); }
+  update(userId: string, dto: any) { return this.db.profile.upsert({ where: { userId }, update: dto, create: { userId, ...dto } }); }
 }
 @Controller('profiles') export class ProfilesController {
   constructor(private readonly profiles: ProfilesService) {}
