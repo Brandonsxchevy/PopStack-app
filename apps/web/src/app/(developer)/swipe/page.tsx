@@ -90,6 +90,18 @@ export default function SwipeFeedPage() {
             {card.fingerprint?.platform && card.fingerprint.platform !== 'UNKNOWN' && (
               <span className="badge-brand text-xs px-2 py-0.5 rounded-full bg-brand-light text-brand font-medium">
                 {card.fingerprint.platform} {card.fingerprint.confidence}%
+                {/* DNS provider */}
+            {(() => {
+              const dnsSig = card.fingerprint?.signals?.find((s: any) => 
+          s.signal?.startsWith('dns_provider:')
+                              )
+              const provider = dnsSig?.signal?.replace('dns_provider: ', '')
+              return provider ? (
+                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+              DNS: {provider}
+                      </span>
+                        ) : null
+                    })()}  
               </span>
             )}
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
