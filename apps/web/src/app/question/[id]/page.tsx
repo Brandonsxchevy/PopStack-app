@@ -32,15 +32,20 @@ export default function QuestionPage() {
     queryFn: () => api.get(`/questions/${id}`).then(r => r.data),
   })
 
-  // Handle return from Stripe Checkout
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const sessionStatus = params.get('session')
     if (sessionStatus === 'success') {
       toast.success('Payment successful — waiting for developer to accept!')
-      qc.invalidateQueries({ queryKey: ['question', id] })
-      // Clean up URL
       window.history.replaceState({}, '', `/question/${id}`)
+      // Poll for status change every 2s for up to 30s
+      let attempts = 0
+      const interval = setInterval(() => {
+        attempts++
+        qc.invalidateQueries({ queryKey: ['question', id] })
+        if (attempts >= 15) clearInterval(interval)
+      }, 2000)
+      return () => clearInterval(interval)
     } else if (sessionStatus === 'cancelled') {
       toast.info('Payment cancelled — you can try again anytime.')
       window.history.replaceState({}, '', `/question/${id}`)
@@ -82,7 +87,9 @@ export default function QuestionPage() {
 
   const response = question.responses?.[0]
   const isLocked = question.status === 'LOCKED'
-  const isActive = ['AWAITING_ACCEPT', 'ACTIVE'].includes(question.status)
+  const isPendingAccept = question.status === 'AWAITING_ACCEPT'
+  const isActive = question.status === 'ACTIVE'
+  const isSessionActive = isPendingAccept || isActive
   const signals: Signal[] = question.fingerprint?.signals ?? []
   const dnsProvider = signals.find(s => s.signal?.startsWith('dns_provider:'))?.signal?.replace('dns_provider: ', '')
 
@@ -118,6 +125,7 @@ export default function QuestionPage() {
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
               question.status === 'OPEN' ? 'bg-blue-50 text-blue-700' :
               question.status === 'LOCKED' ? 'bg-amber-50 text-amber-700' :
+              question.status === 'AWAITING_ACCEPT' ? 'bg-purple-50 text-purple-700' :
               question.status === 'ACTIVE' ? 'bg-green-50 text-green-700' :
               'bg-gray-100 text-gray-600'}`}>
               {question.status.replace(/_/g, ' ')}
@@ -192,70 +200,36 @@ export default function QuestionPage() {
           </div>
         )}
 
-       {/* Credentials warning */}
-{response && question.fingerprint && (question.fingerprint.platform !== 'UNKNOWN' || dnsProvider) && (
-  <div className="card border-amber-200 bg-amber-50 mb-4">
-    <div className="flex items-start gap-2">
-      <span className="text-amber-500 text-lg shrink-0">🔑</span>
-      <div className="w-full">
-        <p className="text-sm font-semibold text-amber-800 mb-1">
-          You may need to share access credentials
-        </p>
-        <p className="text-xs text-amber-700 mb-3">
-          To fix this issue, your developer will likely need login access to the following. Don't worry — you stay in control and can revoke access anytime.
-        </p>
-
-        <div className="space-y-3">
-          {question.fingerprint.platform && question.fingerprint.platform !== 'UNKNOWN' && (
-            <div className="bg-white rounded-lg p-3 border border-amber-200">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm font-semibold text-amber-900">
-                  {question.fingerprint.platform} Admin Panel
-                </span>
-                <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">CMS</span>
+        {/* Credentials warning */}
+        {response && question.fingerprint && (question.fingerprint.platform !== 'UNKNOWN' || dnsProvider) && (
+          <div className="card border-amber-200 bg-amber-50 mb-4">
+            <div className="flex items-start gap-2">
+              <span className="text-amber-500 text-lg shrink-0">🔑</span>
+              <div>
+                <p className="text-sm font-semibold text-amber-800 mb-1">
+                  You may need to share access credentials
+                </p>
+                <p className="text-xs text-amber-700 mb-2">
+                  To fix this issue, your developer will likely need login access to:
+                </p>
+                <ul className="text-xs text-amber-700 space-y-1">
+                  {question.fingerprint.platform && question.fingerprint.platform !== 'UNKNOWN' && (
+                    <li>• <strong>{question.fingerprint.platform}</strong> admin panel</li>
+                  )}
+                  {dnsProvider && (
+                    <li>• <strong>{dnsProvider}</strong> DNS settings</li>
+                  )}
+                </ul>
+                <p className="text-xs text-amber-600 mt-2">
+                  Have your credentials ready before starting a session.
+                </p>
               </div>
-              <p className="text-xs text-gray-600">
-                {question.fingerprint.platform === 'WORDPRESS' && 'Your WordPress dashboard — log in at yoursite.com/wp-admin. You can create a temporary admin account for your developer.'}
-                {question.fingerprint.platform === 'SHOPIFY' && 'Your Shopify admin — log in at yourstore.myshopify.com/admin. You can add staff accounts under Settings → Users.'}
-                {question.fingerprint.platform === 'WIX' && 'Your Wix dashboard — log in at wix.com. You can add a contributor under Settings → Roles & Permissions.'}
-                {question.fingerprint.platform === 'SQUARESPACE' && 'Your Squarespace dashboard — log in at squarespace.com. You can add a contributor under Settings → Permissions.'}
-                {question.fingerprint.platform === 'WEBFLOW' && 'Your Webflow dashboard — log in at webflow.com. You can invite an editor under Project Settings → Members.'}
-                {!['WORDPRESS','SHOPIFY','WIX','SQUARESPACE','WEBFLOW'].includes(question.fingerprint.platform) && 
-                  'Your website admin panel. Ask your developer exactly what access they need before sharing credentials.'}
-              </p>
             </div>
-          )}
+          </div>
+        )}
 
-          {dnsProvider && (
-            <div className="bg-white rounded-lg p-3 border border-amber-200">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm font-semibold text-amber-900">
-                  {dnsProvider} DNS Settings
-                </span>
-                <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">DNS</span>
-              </div>
-              <p className="text-xs text-gray-600">
-                DNS controls where your website and email point to. Your developer may need access to add or change DNS records.
-                {dnsProvider.includes('Cloudflare') && ' Log in at cloudflare.com and share access via Multi-User under your account settings.'}
-                {dnsProvider.includes('GoDaddy') && ' Log in at godaddy.com → My Products → DNS to manage records.'}
-                {dnsProvider.includes('Namecheap') && ' Log in at namecheap.com → Domain List → Manage → Advanced DNS.'}
-                {!dnsProvider.includes('Cloudflare') && !dnsProvider.includes('GoDaddy') && !dnsProvider.includes('Namecheap') &&
-                  ' Log in to wherever you registered your domain to access DNS settings.'}
-              </p>
-            </div>
-          )}
-        </div>
-
-        <p className="text-xs text-amber-600 mt-3 font-medium">
-          💡 Never share passwords in chat — use temporary access accounts where possible.
-        </p>
-      </div>
-    </div>
-  </div>
-)}
-
-        {/* Paywall */}
-        {isLocked && !isActive && response && (
+        {/* Paywall — only show if not yet in session */}
+        {isLocked && !isSessionActive && response && (
           <div className="card border-brand/30">
             <h3 className="font-semibold text-gray-900 mb-3">Continue with {response.developer.name}</h3>
             <div className="space-y-2 mb-4">
@@ -282,20 +256,42 @@ export default function QuestionPage() {
           </div>
         )}
 
-        {isActive && (
-  <div className="card bg-green-50 border-green-200 text-center py-6">
-    <div className="text-2xl mb-2">⚡</div>
-    <h3 className="font-semibold text-green-800">Session in progress</h3>
-    <p className="text-sm text-green-600 mt-1">Your developer is working on it</p>
-    {question.thread?.id && (
-      <Link href={`/threads/${question.thread.id}`}
-        className="btn-primary inline-block px-6 py-2 mt-4 text-sm">
-        💬 Message your developer
-      </Link>
-    )}
-  </div>
-)}
+        {/* Awaiting accept */}
+        {isPendingAccept && (
+          <div className="card bg-amber-50 border-amber-200 text-center py-6">
+            <div className="text-2xl mb-2">⏳</div>
+            <h3 className="font-semibold text-amber-800">Payment received!</h3>
+            <p className="text-sm text-amber-600 mt-1">
+              Waiting for {response?.developer?.name || 'your developer'} to accept the session.
+            </p>
+            <p className="text-xs text-amber-500 mt-2">
+              You'll be able to chat once they accept. Payment is not charged until then.
+            </p>
+            {question.thread?.id && (
+              <Link href={`/threads/${question.thread.id}`}
+                className="btn-primary inline-block px-6 py-2 mt-4 text-sm">
+                💬 Open chat
+              </Link>
+            )}
+          </div>
+        )}
 
+        {/* Active session */}
+        {isActive && (
+          <div className="card bg-green-50 border-green-200 text-center py-6">
+            <div className="text-2xl mb-2">⚡</div>
+            <h3 className="font-semibold text-green-800">Session in progress</h3>
+            <p className="text-sm text-green-600 mt-1">Your developer is working on it</p>
+            {question.thread?.id && (
+              <Link href={`/threads/${question.thread.id}`}
+                className="btn-primary inline-block px-6 py-2 mt-4 text-sm">
+                💬 Message your developer
+              </Link>
+            )}
+          </div>
+        )}
+
+        {/* Waiting for response */}
         {question.status === 'OPEN' && !response && (
           <div className="card text-center py-10">
             <div className="text-4xl mb-3">👀</div>
@@ -309,6 +305,7 @@ export default function QuestionPage() {
           </div>
         )}
 
+        {/* Delete button */}
         {['OPEN', 'LOCKED'].includes(question.status) && (
           <button
             onClick={() => {
