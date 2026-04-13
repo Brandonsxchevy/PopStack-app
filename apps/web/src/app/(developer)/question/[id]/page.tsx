@@ -1,11 +1,13 @@
 'use client'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
+import { toast } from 'sonner'
 
 export default function DevQuestionPage() {
   const { id } = useParams()
   const router = useRouter()
+  const qc = useQueryClient()
 
   const { data: question, isLoading } = useQuery({
     queryKey: ['question', id],
@@ -24,7 +26,6 @@ export default function DevQuestionPage() {
 
   return (
     <div className="max-w-2xl mx-auto p-4 pt-6">
-      {/* Question */}
       <div className="card mb-4">
         <div className="flex items-center gap-2 mb-2">
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
@@ -58,7 +59,6 @@ export default function DevQuestionPage() {
         </div>
       </div>
 
-      {/* Your response */}
       {response ? (
         <div className="card border-green-200 bg-green-50 mb-4">
           <div className="text-xs font-semibold text-green-700 mb-3">✓ Your response sent</div>
@@ -96,7 +96,6 @@ export default function DevQuestionPage() {
         </div>
       )}
 
-      {/* Session status */}
       {['AWAITING_ACCEPT', 'ACTIVE'].includes(question.status) && (
         <div className="card bg-green-50 border-green-200 text-center py-6">
           <div className="text-2xl mb-2">⚡</div>
