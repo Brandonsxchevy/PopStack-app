@@ -37,6 +37,7 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
           { href: '/swipe',    label: 'Feed',     icon: '🔥' },
           { href: '/inbox',    label: 'Inbox',    icon: '📬' },
           { href: '/earnings', label: 'Earnings', icon: '💰' },
+          { href: '/profile', label: 'Profile', icon: '👤' },
         ].map(tab => {
           const active = pathname.startsWith(tab.href)
           return (
