@@ -32,6 +32,25 @@ export class QuestionsService {
       );
     }
 
+    async deleteQuestion(id: string, userId: string) {
+  const question = await this.db.question.findUnique({ where: { id } });
+
+  if (!question) throw new BadRequestException('Question not found');
+  if (question.userId !== userId) throw new BadRequestException('Not your question');
+
+  const deletableStatuses = ['OPEN', 'LOCKED'];
+  if (!deletableStatuses.includes(question.status)) {
+    throw new BadRequestException('Cannot delete a question that has entered a paid state');
+  }
+
+  // Clean up related records first
+  await this.db.swipe.deleteMany({ where: { questionId: id } });
+  await this.db.response.deleteMany({ where: { questionId: id } });
+  await this.db.thread.deleteMany({ where: { questionId: id } });
+
+  return this.db.question.delete({ where: { id } });
+}
+    
     const clarityScore = this.computeClarity({
       hasUrl: !!dto.url,
       screenshotCount: dto.screenshotKeys?.length || 0,
