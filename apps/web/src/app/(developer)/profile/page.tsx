@@ -71,6 +71,30 @@ export default function DeveloperProfilePage() {
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to save'),
   })
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0]
+  if (!file) return
+  if (file.size > 2 * 1024 * 1024) { toast.error('Avatar must be under 2MB'); return }
+
+  setUploadingAvatar(true)
+  try {
+    const { data } = await api.get('/uploads/avatar')
+    await fetch(data.uploadUrl, {
+      method: 'PUT',
+      body: file,
+      headers: { 'Content-Type': file.type }
+    })
+    setAvatarUrl(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/avatars/${data.key}`)
+    // Save the key to profile
+    await api.patch('/profiles/me', { avatarKey: data.key })
+    toast.success('Avatar updated!')
+  } catch {
+    toast.error('Upload failed')
+  } finally {
+    setUploadingAvatar(false)
+  }
+}
+  
   const addTag = (tag: string) => {
     if (tag && !techTags.includes(tag)) {
       setTechTags([...techTags, tag])
@@ -95,9 +119,21 @@ export default function DeveloperProfilePage() {
             </a>
           </p>
         </div>
-        <div className="w-14 h-14 rounded-full bg-brand-light flex items-center justify-center text-brand text-2xl font-bold">
-          {user?.name?.charAt(0).toUpperCase()}
-        </div>
+      <label className="relative cursor-pointer group shrink-0">
+  <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingAvatar} />
+  {avatarUrl ? (
+    <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-brand">
+      <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+    </div>
+  ) : (
+    <div className="w-14 h-14 rounded-full bg-brand-light flex items-center justify-center text-brand text-2xl font-bold">
+      {user?.name?.charAt(0).toUpperCase()}
+    </div>
+  )}
+  <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+    <span className="text-white text-xs">{uploadingAvatar ? '⏳' : '📷'}</span>
+  </div>
+</label>
       </div>
 
       <div className="space-y-5">
