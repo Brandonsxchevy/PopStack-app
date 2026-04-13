@@ -40,6 +40,21 @@ export class AuthService {
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
 
+    async changePassword(userId: string, currentPassword: string, newPassword: string) {
+  const user = await this.db.user.findUnique({ where: { id: userId } });
+  if (!user) throw new UnauthorizedException();
+
+  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!valid) throw new UnauthorizedException('Current password is incorrect');
+
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  await this.db.user.update({
+    where: { id: userId },
+    data: { passwordHash },
+  });
+
+    return { message: 'Password changed successfully' };
+  }
     return this.generateTokens(user);
   }
 
