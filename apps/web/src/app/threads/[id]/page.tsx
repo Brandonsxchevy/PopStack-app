@@ -16,18 +16,32 @@ const TIER_LABELS: Record<string, string> = {
   FIFTY_PLUS: '$75+ — Full solution',
 }
 
+const LANGUAGES = [
+  { code: 'en', label: 'English' },
+  { code: 'es', label: 'Spanish' },
+  { code: 'fr', label: 'French' },
+  { code: 'pt', label: 'Portuguese' },
+  { code: 'zh', label: 'Chinese' },
+  { code: 'ja', label: 'Japanese' },
+  { code: 'ar', label: 'Arabic' },
+  { code: 'hi', label: 'Hindi' },
+]
+
 function TranslateButton({ messageId }: { messageId: string }) {
   const [translated, setTranslated] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [shown, setShown] = useState(false)
+  const [showLangPicker, setShowLangPicker] = useState(false)
+  const [selectedLang, setSelectedLang] = useState('es')
 
-  const translate = async () => {
-    if (shown && translated) { setShown(false); return }
-    if (translated) { setShown(true); return }
+  const translate = async (lang: string) => {
+    setShowLangPicker(false)
+    if (shown && translated && lang === selectedLang) { setShown(false); return }
     setLoading(true)
     try {
-      const res = await api.post(`/messages/${messageId}/translate`, { targetLang: 'en' })
+      const res = await api.post(`/messages/${messageId}/translate`, { targetLang: lang })
       setTranslated(res.data.translatedText)
+      setSelectedLang(lang)
       setShown(true)
     } catch {
       toast.error('Translation failed')
@@ -37,14 +51,159 @@ function TranslateButton({ messageId }: { messageId: string }) {
   }
 
   return (
-    <div>
-      <button onClick={translate} disabled={loading}
+    <div className="relative">
+      <button
+        onClick={() => shown ? setShown(false) : setShowLangPicker(!showLangPicker)}
+        disabled={loading}
         className="text-xs text-gray-400 hover:text-brand transition-colors disabled:opacity-50">
-        {loading ? '...' : shown ? 'Hide' : '🌐'}
+        {loading ? '...' : '🌐'}
       </button>
+      {showLangPicker && (
+        <div className="absolute bottom-6 left-0 bg-white border border-gray-200 rounded-xl shadow-lg z-10 py-1 min-w-[120px]">
+          {LANGUAGES.map(lang => (
+            <button key={lang.code} onClick={() => translate(lang.code)}
+              className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-brand-light hover:text-brand transition-colors">
+              {lang.label}
+            </button>
+          ))}
+        </div>
+      )}
       {shown && translated && (
         <div className="mt-1 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 max-w-[200px]">
           {translated}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function QuestionPanel({ thread, session }: { thread: any; session: any }) {
+  const [open, setOpen] = useState(false)
+  const [summary, setSummary] = useState<string | null>(null)
+  const [loadingSummary, setLoadingSummary] = useState(false)
+
+  const question = thread?.question
+  const fingerprint = question?.fingerprint
+
+  const getSummary = async () => {
+    if (summary) return
+    setLoadingSummary(true)
+    try {
+      const prompt = `You are helping a web developer quickly understand a client's website problem.
+
+Question title: ${question?.title}
+Description: ${question?.description || 'None provided'}
+URL: ${question?.url || 'None provided'}
+Platform: ${fingerprint?.platform || 'Unknown'}
+DNS Provider: ${fingerprint?.signals?.find((s: any) => s.signal?.startsWith('dns_provider:'))?.signal?.replace('dns_provider: ', '') || 'Unknown'}
+Session tier: ${TIER_LABELS[session?.tier] || 'Unknown'}
+
+In 3-4 sentences: summarize the likely problem, what access the developer will need, and the fastest path to a fix. Be direct and practical.`
+
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      })
+      const data = await response.json()
+      setSummary(data.content?.[0]?.text || 'Could not generate summary')
+    } catch {
+      toast.error('Failed to generate summary')
+    } finally {
+      setLoadingSummary(false)
+    }
+  }
+
+  if (!question) return null
+
+  return (
+    <div className="border-b border-gray-200 bg-white">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full px-4 py-2.5 flex items-center justify-between text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+        <div className="flex items-center gap-2">
+          <span>📋</span>
+          <span className="font-medium">Question details</span>
+          {fingerprint?.platform && fingerprint.platform !== 'UNKNOWN' && (
+            <span className="text-xs bg-brand-light text-brand px-2 py-0.5 rounded-full">
+              {fingerprint.platform}
+            </span>
+          )}
+        </div>
+        <span className="text-gray-400">{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 max-w-2xl mx-auto">
+          {/* Question info */}
+          <div className="space-y-2 mb-3">
+            <div>
+              <p className="text-xs font-medium text-gray-500 mb-0.5">Problem</p>
+              <p className="text-sm text-gray-800">{question.title}</p>
+              {question.description && (
+                <p className="text-xs text-gray-500 mt-1">{question.description}</p>
+              )}
+            </div>
+            {question.url && (
+              <div>
+                <p className="text-xs font-medium text-gray-500 mb-0.5">Website</p>
+                <a href={question.url} target="_blank" rel="noopener noreferrer"
+                  className="text-xs text-brand underline">{question.url}</a>
+              </div>
+            )}
+            {fingerprint && (
+              <div className="flex flex-wrap gap-2">
+                {fingerprint.platform && fingerprint.platform !== 'UNKNOWN' && (
+                  <div className="text-xs bg-gray-100 px-2 py-1 rounded-lg">
+                    <span className="text-gray-500">Platform:</span>{' '}
+                    <span className="text-gray-800 font-medium">{fingerprint.platform}</span>
+                  </div>
+                )}
+                {fingerprint.signals?.filter((s: any) => s.signal?.startsWith('dns_provider:')).map((s: any) => (
+                  <div key={s.signal} className="text-xs bg-gray-100 px-2 py-1 rounded-lg">
+                    <span className="text-gray-500">DNS:</span>{' '}
+                    <span className="text-gray-800 font-medium">
+                      {s.signal.replace('dns_provider: ', '')}
+                    </span>
+                  </div>
+                ))}
+                {fingerprint.clarityScore && (
+                  <div className="text-xs bg-gray-100 px-2 py-1 rounded-lg">
+                    <span className="text-gray-500">Clarity:</span>{' '}
+                    <span className="text-gray-800 font-medium">{fingerprint.clarityScore}%</span>
+                  </div>
+                )}
+              </div>
+            )}
+            {session && (
+              <div className="text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded-lg inline-block">
+                {TIER_LABELS[session.tier]}
+              </div>
+            )}
+          </div>
+
+          {/* AI Summary */}
+          <div className="border-t border-gray-100 pt-3">
+            {summary ? (
+              <div className="bg-brand-light rounded-xl p-3">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <span className="text-xs font-semibold text-brand">✨ AI Summary</span>
+                </div>
+                <p className="text-xs text-gray-700 leading-relaxed">{summary}</p>
+              </div>
+            ) : (
+              <button
+                onClick={getSummary}
+                disabled={loadingSummary}
+                className="w-full py-2 rounded-xl border border-brand/30 text-brand text-xs font-medium hover:bg-brand-light transition-colors disabled:opacity-50">
+                {loadingSummary ? '✨ Generating summary...' : '✨ Get AI summary'}
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -185,6 +344,11 @@ export default function ThreadPage() {
         <Link href={isDev ? '/inbox' : '/dashboard'}
           className="text-brand font-bold text-lg shrink-0">PS</Link>
       </nav>
+
+      {/* Question context panel — dev only */}
+      {isDev && (
+        <QuestionPanel thread={thread} session={session} />
+      )}
 
       {/* Session banner — developer accept/decline */}
       {isDev && isPendingAccept && session && (
