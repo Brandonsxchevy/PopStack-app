@@ -1,6 +1,3 @@
-Yep, truncated at line 66. Just replace the whole file on GitHub with this — copy it carefully:
-
-```ts
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { DatabaseService } from '@/database/database.service';
 import { FingerprintService } from '../fingerprint/fingerprint.service';
