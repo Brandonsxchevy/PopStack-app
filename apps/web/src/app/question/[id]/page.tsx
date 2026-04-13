@@ -11,6 +11,13 @@ const TIER_LABELS = {
   FIFTY_PLUS: '$75+ — Full solution'
 }
 
+interface Signal {
+  source: string
+  signal: string
+  platform: string
+  weight: number
+}
+
 export default function QuestionPage() {
   const { id } = useParams()
   const router = useRouter()
@@ -47,12 +54,20 @@ export default function QuestionPage() {
   const response = question.responses?.[0]
   const isLocked = question.status === 'LOCKED'
   const isActive = ['AWAITING_ACCEPT', 'ACTIVE'].includes(question.status)
+  const signals: Signal[] = question.fingerprint?.signals ?? []
+  const dnsProvider = signals.find(s => s.signal?.startsWith('dns_provider:'))?.signal?.replace('dns_provider: ', '')
 
   return (
     <div>
+      {/* Back button */}
+      <button onClick={() => router.push('/dashboard')}
+        className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 mb-4 transition-colors">
+        ← My requests
+      </button>
+
       {/* Header */}
       <div className="card mb-4">
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex flex-wrap items-center gap-2 mb-2">
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
             question.status === 'OPEN' ? 'bg-blue-50 text-blue-700' :
             question.status === 'LOCKED' ? 'bg-amber-50 text-amber-700' :
@@ -60,9 +75,14 @@ export default function QuestionPage() {
             'bg-gray-100 text-gray-600'}`}>
             {question.status.replace(/_/g, ' ')}
           </span>
-          {question.fingerprint?.platform !== 'UNKNOWN' && (
+          {question.fingerprint?.platform && question.fingerprint.platform !== 'UNKNOWN' && (
             <span className="text-xs bg-brand-light text-brand px-2 py-0.5 rounded-full">
-              {question.fingerprint?.platform}
+              {question.fingerprint.platform}
+            </span>
+          )}
+          {dnsProvider && (
+            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+              DNS: {dnsProvider}
             </span>
           )}
         </div>
@@ -110,39 +130,33 @@ export default function QuestionPage() {
       )}
 
       {/* Credentials warning */}
-{response && question.fingerprint && (
-  <div className="card border-amber-200 bg-amber-50 mb-4">
-    <div className="flex items-start gap-2">
-      <span className="text-amber-500 text-lg">🔑</span>
-      <div>
-        <p className="text-sm font-semibold text-amber-800 mb-1">
-          You may need to share access credentials
-        </p>
-        <p className="text-xs text-amber-700 mb-2">
-          To fix this issue, your developer will likely need login access to:
-        </p>
-        <ul className="text-xs text-amber-700 space-y-1">
-          {question.fingerprint.platform && question.fingerprint.platform !== 'UNKNOWN' && (
-            <li>• <strong>{question.fingerprint.platform}</strong> admin panel</li>
-          )}
-          {(() => {
-            const dnsSig = question.fingerprint.signals?.find((s: any) =>
-              s.signal?.startsWith('dns_provider:')
-            )
-            const provider = dnsSig?.signal?.replace('dns_provider: ', '')
-            return provider && provider !== question.fingerprint.platform ? (
-              <li>• <strong>{provider}</strong> DNS settings</li>
-            ) : null
-          })()}
-        </ul>
-        <p className="text-xs text-amber-600 mt-2">
-          Have your credentials ready before starting a session.
-        </p>
-      </div>
-    </div>
-  </div>
-)}
-      
+      {response && question.fingerprint && (question.fingerprint.platform !== 'UNKNOWN' || dnsProvider) && (
+        <div className="card border-amber-200 bg-amber-50 mb-4">
+          <div className="flex items-start gap-2">
+            <span className="text-amber-500 text-lg shrink-0">🔑</span>
+            <div>
+              <p className="text-sm font-semibold text-amber-800 mb-1">
+                You may need to share access credentials
+              </p>
+              <p className="text-xs text-amber-700 mb-2">
+                To fix this issue, your developer will likely need login access to:
+              </p>
+              <ul className="text-xs text-amber-700 space-y-1">
+                {question.fingerprint.platform && question.fingerprint.platform !== 'UNKNOWN' && (
+                  <li>• <strong>{question.fingerprint.platform}</strong> admin panel</li>
+                )}
+                {dnsProvider && (
+                  <li>• <strong>{dnsProvider}</strong> DNS settings</li>
+                )}
+              </ul>
+              <p className="text-xs text-amber-600 mt-2">
+                Have your credentials ready before starting a session.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Paywall */}
       {isLocked && !isActive && response && (
         <div className="card border-brand/30">
@@ -187,7 +201,6 @@ export default function QuestionPage() {
         </div>
       )}
 
-      {/* Delete button */}
       {['OPEN', 'LOCKED'].includes(question.status) && (
         <button
           onClick={() => {
