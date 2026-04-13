@@ -11,6 +11,15 @@ import { SessionsService } from './sessions.service';
 export class SessionsController {
   constructor(private readonly sessions: SessionsService) {}
 
+  @Post('checkout')
+  @Roles('USER')
+  createCheckout(
+    @CurrentUser() user: any,
+    @Body() dto: { questionId: string; tier: string },
+  ) {
+    return this.sessions.createCheckoutSession(user.id, dto);
+  }
+
   @Post()
   @Roles('USER')
   create(@CurrentUser() user: any, @Body() dto: { questionId: string; tier: string; proposalId?: string }) {
