@@ -91,6 +91,14 @@ export class RatingsModule {}
     }
    return this.db.thread.findMany({ where, include: { question: { select: { title: true, clarityScore: true, fingerprint: true } } }, orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }] });  }
   getThread(id: string) { return this.db.thread.findUnique({ where: { id }, include: { messages: { orderBy: { createdAt: 'asc' }, take: 30 }, user: { select: { id: true, name: true } }, developer: { select: { id: true, name: true } }, question: { select: { id: true, title: true, url: true } } } }); }
+  getCounts(userId: string, role: string) {
+  const field = role === 'DEVELOPER' ? 'developerId' : 'userId';
+  const unreadField = role === 'DEVELOPER' ? 'devUnreadCount' : 'userUnreadCount';
+  return Promise.all([
+    this.db.thread.count({ where: { [field]: userId, [unreadField]: { gt: 0 } } }),
+    this.db.thread.count({ where: { developerId: userId, devSection: 'NEW_REQUESTS' } }),
+  ]).then(([unread, pending]) => ({ unread, pending }));
+}
 }
 @Controller('threads') @UseGuards(JwtAuthGuard) export class ThreadsController {
   constructor(private readonly threads: ThreadsService) {}
@@ -99,12 +107,7 @@ export class RatingsModule {}
 @Controller('inbox') @UseGuards(JwtAuthGuard) export class InboxController {
   constructor(private readonly threads: ThreadsService) {}
   @Get() getInbox(@CurrentUser() u: any) { return this.threads.getInbox(u.id, u.role); }
-  @Get('counts') async getCounts(@CurrentUser() u: any) {
-  const field = u.role === 'DEVELOPER' ? 'developerId' : 'userId';
-  const unread = await (this as any).threads.db.thread.count({ where: { [field]: u.id, devUnreadCount: { gt: 0 } } });
-  const pending = await (this as any).threads.db.thread.count({ where: { developerId: u.id, devSection: 'NEW_REQUESTS' } });
-  return { unread, pending };
-}
+  @Get('counts') getCounts(@CurrentUser() u: any) { return this.threads.getCounts(u.id, u.role); }
 }
 @Module({ controllers: [ThreadsController, InboxController], providers: [ThreadsService], exports: [ThreadsService] })
 export class ThreadsModule {}
