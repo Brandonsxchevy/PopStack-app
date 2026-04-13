@@ -16,6 +16,41 @@ const TIER_LABELS: Record<string, string> = {
   FIFTY_PLUS: '$75+ — Full solution',
 }
 
+function TranslateButton({ messageId }: { messageId: string }) {
+  const [translated, setTranslated] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [shown, setShown] = useState(false)
+
+  const translate = async () => {
+    if (shown && translated) { setShown(false); return }
+    if (translated) { setShown(true); return }
+    setLoading(true)
+    try {
+      const res = await api.post(`/messages/${messageId}/translate`, { targetLang: 'en' })
+      setTranslated(res.data.translatedText)
+      setShown(true)
+    } catch {
+      toast.error('Translation failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div>
+      <button onClick={translate} disabled={loading}
+        className="text-xs text-gray-400 hover:text-brand transition-colors disabled:opacity-50">
+        {loading ? '...' : shown ? 'Hide' : '🌐'}
+      </button>
+      {shown && translated && (
+        <div className="mt-1 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-2 py-1.5 max-w-[200px]">
+          {translated}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function ThreadPage() {
   const { id } = useParams()
   const router = useRouter()
@@ -80,6 +115,15 @@ export default function ThreadPage() {
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to complete'),
   })
 
+  const approve = useMutation({
+    mutationFn: () => api.post(`/sessions/${thread.sessionId}/approve`),
+    onSuccess: () => {
+      toast.success('Work approved — payment released! 🎉')
+      qc.invalidateQueries({ queryKey: ['session', thread?.sessionId] })
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to approve'),
+  })
+
   const send = useMutation({
     mutationFn: () => {
       const blocks: any[] = []
@@ -138,7 +182,8 @@ export default function ThreadPage() {
           <div className="font-medium text-gray-900 truncate">{questionTitle}</div>
           <div className="text-xs text-gray-500">with {otherPerson?.name || '...'}</div>
         </div>
-        <Link href="/" className="text-brand font-bold text-lg shrink-0">PS</Link>
+        <Link href={isDev ? '/inbox' : '/dashboard'}
+          className="text-brand font-bold text-lg shrink-0">PS</Link>
       </nav>
 
       {/* Session banner — developer accept/decline */}
@@ -147,9 +192,7 @@ export default function ThreadPage() {
           <div className="max-w-2xl mx-auto">
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-amber-800 mb-0.5">
-                  New session request
-                </p>
+                <p className="text-sm font-semibold text-amber-800 mb-0.5">New session request</p>
                 <p className="text-xs text-amber-700">
                   {TIER_LABELS[session.tier]} · from {thread.user?.name}
                 </p>
@@ -161,15 +204,11 @@ export default function ThreadPage() {
                 )}
               </div>
               <div className="flex gap-2 shrink-0">
-                <button
-                  onClick={() => decline.mutate()}
-                  disabled={decline.isPending}
+                <button onClick={() => decline.mutate()} disabled={decline.isPending}
                   className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50">
                   Decline
                 </button>
-                <button
-                  onClick={() => accept.mutate()}
-                  disabled={accept.isPending}
+                <button onClick={() => accept.mutate()} disabled={accept.isPending}
                   className="px-3 py-1.5 rounded-lg bg-brand text-white text-sm font-medium hover:bg-brand-dark transition-colors disabled:opacity-50">
                   {accept.isPending ? 'Accepting...' : 'Accept ✓'}
                 </button>
@@ -189,9 +228,7 @@ export default function ThreadPage() {
               <span className="text-xs text-green-600">· {TIER_LABELS[session?.tier]}</span>
             </div>
             {isDev && (
-              <button
-                onClick={() => complete.mutate()}
-                disabled={complete.isPending}
+              <button onClick={() => complete.mutate()} disabled={complete.isPending}
                 className="text-xs text-green-700 font-medium border border-green-300 px-2 py-1 rounded-lg hover:bg-green-100 transition-colors disabled:opacity-50">
                 {complete.isPending ? '...' : 'Mark complete'}
               </button>
@@ -202,11 +239,17 @@ export default function ThreadPage() {
 
       {/* Session ended banner */}
       {isEnded && (
-        <div className="bg-gray-50 border-b border-gray-200 px-4 py-2">
-          <div className="max-w-2xl mx-auto text-center">
+        <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
+          <div className="max-w-2xl mx-auto flex items-center justify-between">
             <span className="text-sm text-gray-600">
-              ✅ Session complete — {!isDev ? 'approve the work to release payment' : 'waiting for client approval'}
+              ✅ Session complete — {isDev ? 'waiting for client approval' : 'approve the work to release payment'}
             </span>
+            {!isDev && (
+              <button onClick={() => approve.mutate()} disabled={approve.isPending}
+                className="text-sm bg-brand text-white font-medium px-3 py-1.5 rounded-lg hover:bg-brand-dark transition-colors disabled:opacity-50 shrink-0">
+                {approve.isPending ? '...' : 'Approve & pay ✓'}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -267,9 +310,14 @@ export default function ThreadPage() {
                       </div>
                     ))}
                   </div>
-                  <span className="text-xs text-gray-400 px-1">
-                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
+                  <div className="flex items-center gap-2 px-1">
+                    <span className="text-xs text-gray-400">
+                      {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    {!isMe && msg.type !== 'SYSTEM_EVENT' && (
+                      <TranslateButton messageId={msg.id} />
+                    )}
+                  </div>
                 </div>
               </div>
             )
@@ -278,7 +326,7 @@ export default function ThreadPage() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input — disabled if pending accept */}
+      {/* Input */}
       <div className="bg-white border-t border-gray-200 p-3 max-w-2xl mx-auto w-full">
         {isDev && isPendingAccept ? (
           <p className="text-sm text-gray-400 text-center py-2">
