@@ -12,7 +12,6 @@ import { ProposalsModule } from './modules/proposals/proposals.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthController } from './health.controller';
 import { EarningsModule } from './modules/earnings/earnings.module'
-// add EarningsModule to @Module({ imports: [...] })
 
 // Stub modules — split into own files as you implement each feature
 import {
@@ -35,6 +34,7 @@ import {
     SessionsModule,
     PaymentsModule,
     ProposalsModule,
+    EarningsModule,
     // Stub modules — implement in order listed in README
     UsersModule,
     ContractsModule,
