@@ -99,7 +99,12 @@ export class RatingsModule {}
 @Controller('inbox') @UseGuards(JwtAuthGuard) export class InboxController {
   constructor(private readonly threads: ThreadsService) {}
   @Get() getInbox(@CurrentUser() u: any) { return this.threads.getInbox(u.id, u.role); }
-  @Get('counts') getCounts(@CurrentUser() u: any) { return { placeholder: true, userId: u.id }; }
+  @Get('counts') async getCounts(@CurrentUser() u: any) {
+  const field = u.role === 'DEVELOPER' ? 'developerId' : 'userId';
+  const unread = await (this as any).threads.db.thread.count({ where: { [field]: u.id, devUnreadCount: { gt: 0 } } });
+  const pending = await (this as any).threads.db.thread.count({ where: { developerId: u.id, devSection: 'NEW_REQUESTS' } });
+  return { unread, pending };
+}
 }
 @Module({ controllers: [ThreadsController, InboxController], providers: [ThreadsService], exports: [ThreadsService] })
 export class ThreadsModule {}
