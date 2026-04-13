@@ -47,6 +47,9 @@ export default function DeveloperProfilePage() {
       setLocation(p.location || '')
       setPortfolioLinks(p.portfolioLinks?.length ? p.portfolioLinks : [''])
       setRetainerEnabled(p.retainerEnabled || false)
+      if (p.avatarKey) {
+      setAvatarUrl(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/avatars/${p.avatarKey}`)
+}
     }
   }, [profile])
 
