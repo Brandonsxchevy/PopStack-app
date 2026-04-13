@@ -207,15 +207,11 @@ export class RetainersModule {}
     return { translatedText, cached: false };
   } catch {
     return { message: 'Translation failed' };
+      }
+   }
+
   }
-}
-    // In production: call DeepL API here
-    // const result = await this.deepl.translate(msg.originalText, targetLang);
-    const mockTranslation = `[Translation of: ${msg.originalText.substring(0, 50)}...]`;
-    await this.db.threadMessage.update({ where: { id: messageId }, data: { translatedText: mockTranslation, translationStatus: 'GENERATED', translationTargetLang: targetLang } });
-    return { translatedText: mockTranslation, cached: false };
-  }
-}
+
 @Controller('messages') @UseGuards(JwtAuthGuard) export class TranslationController {
   constructor(private readonly translation: TranslationService) {}
   @Post(':id/translate') translate(@Param('id') id: string, @Body() body: { targetLang: string }) { return this.translation.translate(id, body.targetLang); }
