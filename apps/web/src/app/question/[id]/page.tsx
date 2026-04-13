@@ -1,7 +1,7 @@
 'use client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
@@ -32,11 +32,28 @@ export default function QuestionPage() {
     queryFn: () => api.get(`/questions/${id}`).then(r => r.data),
   })
 
-  const startSession = useMutation({
-    mutationFn: () => api.post('/sessions', { questionId: id, tier: selectedTier }),
-    onSuccess: () => {
-      toast.success('Session started — waiting for developer to accept')
+  // Handle return from Stripe Checkout
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const sessionStatus = params.get('session')
+    if (sessionStatus === 'success') {
+      toast.success('Payment successful — waiting for developer to accept!')
       qc.invalidateQueries({ queryKey: ['question', id] })
+      // Clean up URL
+      window.history.replaceState({}, '', `/question/${id}`)
+    } else if (sessionStatus === 'cancelled') {
+      toast.info('Payment cancelled — you can try again anytime.')
+      window.history.replaceState({}, '', `/question/${id}`)
+    }
+  }, [])
+
+  const startSession = useMutation({
+    mutationFn: () => api.post('/sessions/checkout', {
+      questionId: id,
+      tier: selectedTier,
+    }),
+    onSuccess: (res) => {
+      window.location.href = res.data.checkoutUrl
     },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to start session'),
   })
@@ -126,7 +143,6 @@ export default function QuestionPage() {
               {question.url}
             </a>
           )}
-          {/* Screenshot thumbnail */}
           {question.screenshotKeys?.length > 0 && (
             <div className="mt-3 rounded-lg overflow-hidden border border-gray-200 h-40">
               <img
@@ -213,7 +229,9 @@ export default function QuestionPage() {
                 <button key={tier} type="button"
                   onClick={() => setSelectedTier(tier)}
                   className={`w-full p-3 rounded-xl border text-left text-sm transition-all ${
-                    selectedTier === tier ? 'border-brand bg-brand-light text-brand font-medium' : 'border-gray-200 text-gray-700'}`}>
+                    selectedTier === tier
+                      ? 'border-brand bg-brand-light text-brand font-medium'
+                      : 'border-gray-200 text-gray-700'}`}>
                   {label}
                 </button>
               ))}
@@ -222,10 +240,10 @@ export default function QuestionPage() {
               onClick={() => startSession.mutate()}
               disabled={startSession.isPending}
               className="btn-primary w-full py-3 disabled:opacity-50">
-              {startSession.isPending ? 'Starting...' : 'Start session'}
+              {startSession.isPending ? 'Redirecting to payment...' : 'Start session →'}
             </button>
             <p className="text-xs text-gray-400 text-center mt-2">
-              Payment is held safely — only released when you approve the work
+              You'll be taken to Stripe's secure checkout. Payment is only captured when your developer accepts.
             </p>
           </div>
         )}
