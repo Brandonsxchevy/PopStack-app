@@ -200,15 +200,23 @@ export class RetainersModule {}
     return { translatedText: msg.translatedText, cached: true };
   }
   try {
-    const response = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(msg.originalText)}&langpair=auto|${targetLang}`);
+    const deeplLangMap: Record<string, string> = {
+      en: 'EN', es: 'ES', fr: 'FR', pt: 'PT', zh: 'ZH', ja: 'JA', ar: 'AR', hi: 'HI'
+    };
+    const targetCode = deeplLangMap[targetLang] || targetLang.toUpperCase();
+    const response = await fetch('https://api-free.deepl.com/v2/translate', {
+      method: 'POST',
+      headers: { 'Authorization': `DeepL-Auth-Key ${process.env.DEEPL_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: [msg.originalText], target_lang: targetCode }),
+    });
     const data = await response.json();
-    const translatedText = data.responseData?.translatedText || msg.originalText;
+    const translatedText = data.translations?.[0]?.text || msg.originalText;
     await this.db.threadMessage.update({ where: { id: messageId }, data: { translatedText, translationStatus: 'GENERATED', translationTargetLang: targetLang } });
     return { translatedText, cached: false };
   } catch {
     return { message: 'Translation failed' };
-      }
-   }
+  }
+}
 
   }
 
