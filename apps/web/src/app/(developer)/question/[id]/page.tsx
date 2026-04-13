@@ -1,13 +1,11 @@
 'use client'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useParams, useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
-import { toast } from 'sonner'
 
 export default function DevQuestionPage() {
   const { id } = useParams()
   const router = useRouter()
-  const qc = useQueryClient()
 
   const { data: question, isLoading } = useQuery({
     queryKey: ['question', id],
