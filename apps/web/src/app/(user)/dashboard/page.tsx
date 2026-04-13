@@ -1,19 +1,30 @@
 'use client'
 import { useQuery } from '@tanstack/react-query'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { api } from '@/lib/api'
 
 const STATUS_CONFIG: Record<string, { label: string; style: string; icon: string }> = {
-  OPEN:            { label: 'Waiting for response', style: 'bg-blue-50 text-blue-700',   icon: '👀' },
-  LOCKED:          { label: 'Response received',    style: 'bg-amber-50 text-amber-700', icon: '🔒' },
-  AWAITING_ACCEPT: { label: 'Payment received',     style: 'bg-purple-50 text-purple-700', icon: '⏳' },
-  ACTIVE:          { label: 'Session in progress',  style: 'bg-green-50 text-green-700', icon: '⚡' },
-  ENDED:           { label: 'Awaiting your approval', style: 'bg-orange-50 text-orange-700', icon: '✅' },
-  CLOSED:          { label: 'Completed',            style: 'bg-gray-50 text-gray-500',   icon: '✓' },
-  EXPIRED:         { label: 'Expired',              style: 'bg-red-50 text-red-500',     icon: '⚠️' },
+  OPEN:            { label: 'Waiting for response',  style: 'bg-blue-50 text-blue-700',     icon: '👀' },
+  LOCKED:          { label: 'Response received',     style: 'bg-amber-50 text-amber-700',   icon: '🔒' },
+  AWAITING_ACCEPT: { label: 'Payment received',      style: 'bg-purple-50 text-purple-700', icon: '⏳' },
+  ACTIVE:          { label: 'Session in progress',   style: 'bg-green-50 text-green-700',   icon: '⚡' },
+  ENDED:           { label: 'Awaiting your approval',style: 'bg-orange-50 text-orange-700', icon: '✅' },
+  CLOSED:          { label: 'Completed',             style: 'bg-gray-50 text-gray-500',     icon: '✓' },
+  EXPIRED:         { label: 'Expired',               style: 'bg-red-50 text-red-500',       icon: '⚠️' },
 }
 
+const PopIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+    className="w-4 h-4">
+    <path d="M7 17L17 7M17 7H7M17 7v10" />
+  </svg>
+)
+
 export default function DashboardPage() {
+  const router = useRouter()
+
   const { data: questions = [], isLoading } = useQuery({
     queryKey: ['my-questions'],
     queryFn: () => api.get('/questions/my').then(r => r.data),
@@ -33,7 +44,6 @@ export default function DashboardPage() {
     </div>
   )
 
-  // Split into active/pending and completed
   const activeQuestions = questions.filter((q: any) =>
     ['OPEN', 'LOCKED', 'AWAITING_ACCEPT', 'ACTIVE', 'ENDED'].includes(q.status))
   const completedQuestions = questions.filter((q: any) =>
@@ -46,15 +56,20 @@ export default function DashboardPage() {
     const isEnded = q.status === 'ENDED'
 
     return (
-      <div key={q.id} className={`card transition-shadow ${isActive ? 'border-green-300 border-2' : isEnded ? 'border-orange-300 border-2' : 'hover:shadow-md'}`}>
+      <div
+        key={q.id}
+        onClick={() => router.push(`/question/${q.id}`)}
+        className={`card cursor-pointer group hover:-translate-y-1 hover:shadow-lg transition-all duration-200 ${
+          isActive ? 'border-green-300 border-2' :
+          isEnded ? 'border-orange-300 border-2' : ''
+        }`}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               {isActive && <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse shrink-0" />}
-              <Link href={`/question/${q.id}`}
-                className="font-medium text-gray-900 truncate block hover:text-brand transition-colors">
+              <span className="font-medium text-gray-900 truncate block group-hover:text-brand transition-colors">
                 {q.title}
-              </Link>
+              </span>
             </div>
             {q.url && <div className="text-xs text-gray-400 truncate mt-0.5">{q.url}</div>}
             <div className="flex items-center gap-2 mt-2 flex-wrap">
@@ -76,33 +91,48 @@ export default function DashboardPage() {
             {/* Action buttons */}
             <div className="flex items-center gap-2 mt-3">
               {isEnded && q.thread?.id && (
-                <Link href={`/threads/${q.thread.id}`}
+                <Link
+                  href={`/threads/${q.thread.id}`}
+                  onClick={e => e.stopPropagation()}
                   className="text-xs bg-orange-500 text-white font-medium px-3 py-1.5 rounded-lg hover:bg-orange-600 transition-colors">
                   ✅ Approve & release payment
                 </Link>
               )}
               {isActive && q.thread?.id && (
-                <Link href={`/threads/${q.thread.id}`}
+                <Link
+                  href={`/threads/${q.thread.id}`}
+                  onClick={e => e.stopPropagation()}
                   className="text-xs bg-green-500 text-white font-medium px-3 py-1.5 rounded-lg hover:bg-green-600 transition-colors">
                   💬 Open chat
                 </Link>
               )}
               {q.status === 'AWAITING_ACCEPT' && q.thread?.id && (
-                <Link href={`/threads/${q.thread.id}`}
+                <Link
+                  href={`/threads/${q.thread.id}`}
+                  onClick={e => e.stopPropagation()}
                   className="text-xs bg-purple-500 text-white font-medium px-3 py-1.5 rounded-lg hover:bg-purple-600 transition-colors">
                   💬 View chat
                 </Link>
               )}
               {!isActionRequired && q.thread?.id && (
-                <Link href={`/threads/${q.thread.id}`}
+                <Link
+                  href={`/threads/${q.thread.id}`}
+                  onClick={e => e.stopPropagation()}
                   className="text-xs text-brand font-medium hover:underline">
                   💬 Chat
                 </Link>
               )}
             </div>
           </div>
-          <div className="text-xs text-gray-400 shrink-0">
-            {new Date(q.createdAt).toLocaleDateString()}
+
+          {/* Pop icon + date */}
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <div className="text-gray-300 group-hover:text-brand group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-200">
+              <PopIcon />
+            </div>
+            <div className="text-xs text-gray-400">
+              {new Date(q.createdAt).toLocaleDateString()}
+            </div>
           </div>
         </div>
       </div>
