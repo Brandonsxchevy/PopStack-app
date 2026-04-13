@@ -23,7 +23,7 @@ export class UsersModule {}
 @Injectable() export class ContractsService {
   constructor(private readonly db: DatabaseService) {}
   create(userId: string, dto: any) { return this.db.contract.create({ data: { ...dto, userId, status: 'DRAFT' } }); }
-  update(id: string, dto: any) { return this.db.contract.update({ where: { id }, data: dto }); }
+  update(userId: string, dto: any) {return this.db.profile.upsert({ where: { userId }, update: dto, create: { userId, ...dto } }); }
   sign(id: string, _userId: string) { return this.db.contract.update({ where: { id }, data: { status: 'SIGNED' } }); }
 }
 @Controller('contracts') @UseGuards(JwtAuthGuard, RolesGuard) export class ContractsController {
