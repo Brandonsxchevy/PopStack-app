@@ -8,6 +8,7 @@ interface User {
   role: 'USER' | 'DEVELOPER'
   badges: string[]
   avgRating: number | null
+  preferredLanguage: string
 }
 
 interface AuthState {
