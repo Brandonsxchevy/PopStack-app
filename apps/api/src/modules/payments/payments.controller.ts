@@ -63,9 +63,21 @@ async handleStripeWebhook(
   return { received: true }
 }
 
-  private async handleCheckoutCompleted(checkoutSession: any) {
-    const { questionId, userId, tier } = checkoutSession.metadata ?? {};
-    if (!questionId || !userId || !tier) {
+private async handleCheckoutCompleted(checkoutSession: any) {
+  const { questionId, userId, tier: rawTier } = checkoutSession.metadata ?? {};
+  
+  // Map frontend tier values to SessionTier enum
+  const TIER_MAP: Record<string, string> = {
+    FIVE: 'QUICK_FOLLOWUP',
+    TWENTY: 'FIFTEEN_MIN',
+    FIFTY_PLUS: 'FULL_SOLUTION',
+    QUICK_FOLLOWUP: 'QUICK_FOLLOWUP',
+    FIFTEEN_MIN: 'FIFTEEN_MIN',
+    FULL_SOLUTION: 'FULL_SOLUTION',
+  }
+  const tier = TIER_MAP[rawTier] || 'FIFTEEN_MIN'
+  
+  if (!questionId || !userId || !rawTier) {
       this.logger.warn('Checkout completed but missing metadata', checkoutSession.id);
       return;
     }
