@@ -3,10 +3,12 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { api } from '@/lib/api'
+import { useAuthStore } from '@/lib/store'
 
 export default function PublicDevProfilePage() {
   const { username } = useParams()
   const router = useRouter()
+  const { user, isAuthenticated } = useAuthStore()
 
   const { data: dev, isLoading } = useQuery({
     queryKey: ['dev-profile', username],
@@ -26,25 +28,38 @@ export default function PublicDevProfilePage() {
   )
 
   const profile = dev.profile
+  const avatarUrl = profile?.avatarKey
+    ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/avatars/${profile.avatarKey}`
+    : null
+
+  // Where does "Get help" go based on auth state
+  const getHelpHref = isAuthenticated()
+    ? user?.role === 'USER' ? '/ask' : '/'
+    : '/auth/signup?role=user'
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Nav */}
       <nav className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
         <Link href="/" className="text-brand font-bold text-lg">PopStack</Link>
-        <button onClick={() => router.back()}
-          className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
+        <Link href="/" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
           ← Back
-        </button>
+        </Link>
       </nav>
 
       <div className="max-w-2xl mx-auto p-4 pt-8">
         {/* Header */}
         <div className="card mb-4">
           <div className="flex items-start gap-4">
-            <div className="w-16 h-16 rounded-full bg-brand-light flex items-center justify-center text-brand text-2xl font-bold shrink-0">
-              {dev.name?.charAt(0).toUpperCase()}
-            </div>
+            {avatarUrl ? (
+              <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-brand shrink-0">
+                <img src={avatarUrl} alt={dev.name} className="w-full h-full object-cover" />
+              </div>
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-brand-light flex items-center justify-center text-brand text-2xl font-bold shrink-0">
+                {dev.name?.charAt(0).toUpperCase()}
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <h1 className="text-xl font-bold text-gray-900">{dev.name}</h1>
               {profile?.location && (
@@ -133,9 +148,7 @@ export default function PublicDevProfilePage() {
                       {new Date(r.createdAt).toLocaleDateString()}
                     </span>
                   </div>
-                  {r.comment && (
-                    <p className="text-sm text-gray-600">{r.comment}</p>
-                  )}
+                  {r.comment && <p className="text-sm text-gray-600">{r.comment}</p>}
                 </div>
               ))}
             </div>
@@ -145,12 +158,14 @@ export default function PublicDevProfilePage() {
         {/* CTA */}
         <div className="card bg-brand text-white text-center py-6">
           <h3 className="font-semibold text-lg mb-1">Need help with your website?</h3>
-          <p className="text-brand-light text-sm mb-4 opacity-90">
+          <p className="text-sm mb-4 opacity-90">
             {dev.name} can diagnose and fix your issue fast.
           </p>
-          <Link href={`/auth/signup?role=user`}
-            className="bg-white text-brand font-medium px-6 py-2 rounded-xl text-sm hover:bg-brand-light transition-colors inline-block">
-            Get help from {dev.name}
+          <Link href={getHelpHref}
+            className="bg-white text-brand font-medium px-6 py-2 rounded-xl text-sm hover:opacity-90 transition-opacity inline-block">
+            {isAuthenticated() && user?.role === 'USER'
+              ? `Submit a request for ${dev.name}`
+              : `Get help from ${dev.name}`}
           </Link>
         </div>
       </div>
