@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
 interface Question {
   id: string
@@ -28,7 +29,7 @@ const URGENCY_COLORS: Record<string, string> = {
 export default function SwipeFeedPage() {
   const qc = useQueryClient()
   const [current, setCurrent] = useState(0)
-
+  const router = useRouter()
   const { data: questions = [], isLoading } = useQuery<Question[]>({
     queryKey: ['feed'],
     queryFn: () => api.get('/questions/feed').then(r => r.data),
