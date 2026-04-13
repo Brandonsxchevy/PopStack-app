@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
 import { toast } from 'sonner'
+import RatingModal from '@/components/RatingModal'
 
 const TIER_LABELS: Record<string, string> = {
   QUICK_FOLLOWUP: '$7.50 — Quick follow-up',
@@ -163,7 +164,8 @@ export default function ThreadPage() {
   const [translations, setTranslations] = useState<Record<string, string>>({})
   const [detectedUserLang, setDetectedUserLang] = useState<string | null>(null)
   const [translating, setTranslating] = useState(false)
-
+  const [showRatingModal, setShowRatingModal] = useState(false)
+  const [showDevRatingModal, setShowDevRatingModal] = useState(false)
   const { data: thread, isLoading } = useQuery({
     queryKey: ['thread', id],
     queryFn: () => api.get(`/threads/${id}`).then(r => r.data),
@@ -268,7 +270,8 @@ export default function ThreadPage() {
     onSuccess: () => {
       toast.success('Session marked complete — 24h review window started')
       qc.invalidateQueries({ queryKey: ['session', thread?.sessionId] })
-    },
+      setShowDevRatingModal(true)
+},
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to complete'),
   })
 
@@ -277,7 +280,8 @@ export default function ThreadPage() {
     onSuccess: () => {
       toast.success('Work approved — payment released! 🎉')
       qc.invalidateQueries({ queryKey: ['session', thread?.sessionId] })
-    },
+  setShowRatingModal(true)
+},
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to approve'),
   })
 
@@ -571,6 +575,22 @@ export default function ThreadPage() {
           </>
         )}
       </div>
+      {showRatingModal && session && (
+        <RatingModal
+    sessionId={thread.sessionId}
+    rateeType="developer"
+    rateeName={thread.developer?.name || 'your developer'}
+    onClose={() => setShowRatingModal(false)}
+  />
+    )}
+      {showDevRatingModal && session && (
+      <RatingModal
+    sessionId={thread.sessionId}
+    rateeType="user"
+    rateeName={thread.user?.name || 'your client'}
+    onClose={() => setShowDevRatingModal(false)}
+  />
+)}
     </div>
   )
 }
