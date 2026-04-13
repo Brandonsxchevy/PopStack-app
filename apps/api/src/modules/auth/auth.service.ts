@@ -69,16 +69,17 @@ export class AuthService {
       expiresIn: this.config.get('JWT_REFRESH_EXPIRES_IN', '7d'),
     });
     return {
-      accessToken,
-      refreshToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        badges: user.badges,
-        avgRating: user.avgRating,
-      },
-    };
+  accessToken,
+  refreshToken,
+  user: {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    badges: user.badges,
+    avgRating: user.avgRating,
+    preferredLanguage: user.preferredLanguage || 'en',
+  },
+};
   }
 }
