@@ -91,7 +91,7 @@ export class RatingsModule {}
     }
     return this.db.thread.findMany({ where, include: { question: { select: { title: true, clarityScore: true, fingerprint: true } } }, orderBy: { lastMessageAt: 'desc' } });
   }
-  getThread(id: string) { return this.db.thread.findUnique({ where: { id }, include: { messages: { orderBy: { createdAt: 'asc' }, take: 30 } } }); }
+  getThread(id: string) { return this.db.thread.findUnique({ where: { id }, include: { messages: { orderBy: { createdAt: 'asc' }, take: 30 }, user: { select: { id: true, name: true } }, developer: { select: { id: true, name: true } }, question: { select: { id: true, title: true, url: true } } } }); }
 }
 @Controller('threads') @UseGuards(JwtAuthGuard) export class ThreadsController {
   constructor(private readonly threads: ThreadsService) {}
