@@ -19,6 +19,8 @@ export default function DeveloperProfilePage() {
   const qc = useQueryClient()
 
   const [bio, setBio] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [techTags, setTechTags] = useState<string[]>([])
   const [tagInput, setTagInput] = useState('')
   const [yearsExperience, setYearsExperience] = useState('')
