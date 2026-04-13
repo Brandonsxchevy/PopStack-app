@@ -24,10 +24,12 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen flex flex-col">
-      <nav className="bg-dark text-white px-4 py-3 flex items-center gap-6">
-        <span className="text-brand font-bold text-lg">PopStack</span>
-        <span className="text-xs text-gray-500 font-mono">pop() problems</span>
-        <div className="flex gap-4 ml-auto">
+      <nav className="bg-dark text-white px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-brand font-bold text-lg">PopStack</span>
+          <span className="text-xs text-gray-500 font-mono hidden sm:block">pop() problems</span>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
           {NAV.map(n => (
             <Link key={n.href} href={n.href}
               className={`text-sm transition-colors ${pathname.startsWith(n.href) ? 'text-brand font-medium' : 'text-gray-400 hover:text-white'}`}>
@@ -36,7 +38,7 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
           ))}
           <button onClick={() => { clearAuth(); router.push('/') }}
             className="text-sm text-gray-500 hover:text-white transition-colors">
-            Logout
+            Out
           </button>
         </div>
       </nav>
