@@ -37,10 +37,15 @@ export default function SwipeFeedPage() {
   const swipe = useMutation({
     mutationFn: ({ questionId, action }: { questionId: string; action: string }) =>
       api.post('/swipes', { questionId, action }),
-    onSuccess: () => setCurrent(c => c + 1),
-    onError: () => toast.error('Failed to record swipe'),
-  })
-
+    onSuccess: (_, variables) => {
+    if (variables.action === 'ANSWER_NOW') {
+      router.push(`/respond/${variables.questionId}`)
+    } else {
+      setCurrent(c => c + 1)
+    }
+  },
+  onError: () => toast.error('Failed to record swipe'),
+})
   const card = questions[current]
 
   if (isLoading) return (
