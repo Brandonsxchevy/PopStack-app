@@ -19,6 +19,14 @@ const SECTION_LABELS = [
   { key: 'COMPLETED',        label: 'Completed',          color: 'text-gray-400' },
 ]
 
+const PopIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+    className="w-4 h-4">
+    <path d="M7 17L17 7M17 7H7M17 7v10" />
+  </svg>
+)
+
 export default function InboxPage() {
   const { data: threads = [], isLoading } = useQuery({
     queryKey: ['dev-inbox'],
@@ -34,7 +42,6 @@ export default function InboxPage() {
     <div className="text-center py-20 text-gray-400">Loading inbox...</div>
   )
 
-  // Exclude ACTIVE_WORK — those go to the Active tab
   const inboxThreads = threads.filter((t: any) => t.devSection !== 'ACTIVE_WORK')
 
   if (inboxThreads.length === 0) return (
@@ -71,10 +78,10 @@ export default function InboxPage() {
           <div className="space-y-2">
             {group.threads.map((thread: any) => (
               <Link key={thread.id} href={`/threads/${thread.id}`}
-                className="card hover:shadow-md transition-shadow block">
+                className="card block cursor-pointer group hover:-translate-y-1 hover:shadow-lg transition-all duration-200">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-900 truncate">
+                    <div className="font-medium text-gray-900 truncate group-hover:text-brand transition-colors">
                       {thread.question?.title || 'Untitled request'}
                     </div>
                     {thread.lastMessagePreview && (
@@ -97,11 +104,16 @@ export default function InboxPage() {
                       )}
                     </div>
                   </div>
-                  {thread.devUnreadCount > 0 && (
-                    <span className="bg-brand text-white text-xs rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">
-                      {thread.devUnreadCount}
-                    </span>
-                  )}
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    <div className="text-gray-300 group-hover:text-brand group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-200">
+                      <PopIcon />
+                    </div>
+                    {thread.devUnreadCount > 0 && (
+                      <span className="bg-brand text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                        {thread.devUnreadCount}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </Link>
             ))}
