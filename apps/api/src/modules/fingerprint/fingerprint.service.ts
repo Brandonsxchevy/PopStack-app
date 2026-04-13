@@ -3,6 +3,22 @@ import { DatabaseService } from '@/database/database.service';
 import axios from 'axios';
 import * as dns from 'dns/promises';
 
+// Add to NS_RULES at the top:
+const DNS_PROVIDER_RULES: [RegExp, string][] = [
+  [/cloudflare\.com/,          'Cloudflare'],
+  [/domaincontrol\.com/,       'GoDaddy'],
+  [/registrar-servers\.com/,   'Namecheap'],
+  [/awsdns/,                   'AWS Route53'],
+  [/googledomains\.com/,       'Google Domains'],
+  [/squarespacedns\.com/,      'Squarespace DNS'],
+  [/wixdns\.net/,              'Wix DNS'],
+  [/shopify\.com/,             'Shopify DNS'],
+  [/wordpress\.com/,           'WordPress.com DNS'],
+  [/azure-dns/,                'Azure DNS'],
+  [/dnsimple\.com/,            'DNSimple'],
+  [/digitalocean\.com/,        'DigitalOcean DNS'],
+]
+
 interface Signal {
   source: 'html' | 'header' | 'dns' | 'url';
   signal: string;
@@ -135,22 +151,49 @@ export class FingerprintService {
     return signals;
   }
 
-  private async probeDns(url: string): Promise<Signal[]> {
-    const hostname = new URL(url).hostname;
-    const signals: Signal[] = [];
-    try {
-      const nameservers = await dns.resolveNs(hostname);
-      for (const [pattern, platform, weight] of NS_RULES) {
-        if (nameservers.some(ns => pattern.test(ns))) {
-          signals.push({ source: 'dns', signal: `ns: ${nameservers[0]}`, platform, weight });
-        }
+private async probeDns(url: string): Promise<Signal[]> {
+  const hostname = new URL(url).hostname;
+  const signals: Signal[] = [];
+  try {
+    const nameservers = await dns.resolveNs(hostname);
+    
+    // CMS detection via NS
+    for (const [pattern, platform, weight] of NS_RULES) {
+      if (nameservers.some(ns => pattern.test(ns))) {
+        signals.push({ source: 'dns', signal: `ns: ${nameservers[0]}`, platform, weight });
       }
-    } catch {
-      // DNS lookup failed — not an error, just no signals
     }
-    return signals;
-  }
 
+    // DNS provider detection — store as special signal
+    for (const [pattern, provider] of DNS_PROVIDER_RULES) {
+      if (nameservers.some(ns => pattern.test(ns))) {
+        signals.push({ 
+          source: 'dns', 
+          signal: `dns_provider: ${provider}`, 
+          platform: 'UNKNOWN',
+          weight: 0 
+        });
+        break; // only one DNS provider
+      }
+    }
+
+    // If no match, store raw nameserver
+    const hasProvider = signals.some(s => s.signal.startsWith('dns_provider:'));
+    if (!hasProvider && nameservers.length > 0) {
+      signals.push({
+        source: 'dns',
+        signal: `dns_provider: ${nameservers[0]}`,
+        platform: 'UNKNOWN',
+        weight: 0,
+      });
+    }
+
+  } catch {
+    // DNS lookup failed
+  }
+  return signals;
+}
+  
   private probeUrl(url: string): Signal[] {
     const signals: Signal[] = [];
     const hostname = new URL(url).hostname;
