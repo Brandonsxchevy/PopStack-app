@@ -10,6 +10,21 @@ export class QuestionsService {
     private readonly fingerprint: FingerprintService,
   ) {}
 
+  async getMyQuestions(userId: string) {
+  return this.db.question.findMany({
+    where: { userId },
+    include: {
+      fingerprint: true,
+      responses: {
+        include: {
+          developer: { select: { id: true, name: true, avgRating: true } },
+        },
+      },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+  
   async create(userId: string, dto: CreateQuestionDto) {
     if (!dto.url && (!dto.screenshotKeys || dto.screenshotKeys.length === 0)) {
       throw new BadRequestException(
