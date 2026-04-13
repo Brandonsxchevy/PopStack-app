@@ -68,7 +68,7 @@ export default function InboxPage() {
           </h2>
           <div className="space-y-2">
             {group.threads.map((thread: any) => (
-              <Link key={thread.id} href={`/threads/${thread.id}`}
+              <Link key={thread.id} href={`/question/${thread.questionId}`}
                 className="card hover:shadow-md transition-shadow block">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
