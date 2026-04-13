@@ -109,8 +109,9 @@ export class ThreadsModule {}
 @Injectable() export class MessagesService {
   constructor(private readonly db: DatabaseService) {}
   send(threadId: string, senderId: string, dto: any) {
-    return this.db.threadMessage.create({ data: { threadId, senderId, type: dto.type || 'PAID_MESSAGE', blocks: dto.blocks || [], channel: dto.channel || 'EXTERNAL' } });
-  }
+  const textContent = (dto.blocks || []).filter((b: any) => b.type === 'text').map((b: any) => typeof b.content === 'string' ? b.content : '').join(' ');
+  return this.db.threadMessage.create({ data: { threadId, senderId, type: dto.type || 'PAID_MESSAGE', blocks: dto.blocks || [], channel: dto.channel || 'EXTERNAL', originalText: textContent || null } });
+}
   getMessages(threadId: string, limit = 30) {
     return this.db.threadMessage.findMany({ where: { threadId, visibleToUser: true }, orderBy: { createdAt: 'asc' }, take: limit });
   }
