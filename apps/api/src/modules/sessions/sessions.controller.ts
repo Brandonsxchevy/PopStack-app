@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard, RolesGuard } from '@/common/guards/auth.guard';
 import { Roles, CurrentUser } from '@/common/decorators';
@@ -18,6 +18,11 @@ export class SessionsController {
     @Body() dto: { questionId: string; tier: string },
   ) {
     return this.sessions.createCheckoutSession(user.id, dto);
+  }
+
+  @Get(':id')
+  getById(@Param('id') id: string) {
+    return this.sessions.getById(id);
   }
 
   @Post()
