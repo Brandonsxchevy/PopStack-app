@@ -13,11 +13,11 @@ const STATUS_STYLES: Record<string, string> = {
 }
 
 const SECTION_LABELS = [
-  { key: 'NEW_REQUESTS',    label: 'New requests',  color: 'text-blue-600' },
-  { key: 'AWAITING_PAYMENT', label: 'Awaiting payment', color: 'text-amber-600' },
-  { key: 'ACTIVE_WORK',     label: 'Active work',   color: 'text-green-600' },
-  { key: 'BLOCKED',         label: 'Blocked',       color: 'text-red-500' },
-  { key: 'COMPLETED',       label: 'Completed',     color: 'text-gray-400' },
+  { key: 'NEW_REQUESTS',     label: 'New requests',       color: 'text-blue-600' },
+  { key: 'AWAITING_PAYMENT', label: 'Pending acceptance', color: 'text-amber-600' },
+  { key: 'ACTIVE_WORK',      label: 'Active work',        color: 'text-green-600' },
+  { key: 'BLOCKED',          label: 'Blocked',            color: 'text-red-500' },
+  { key: 'COMPLETED',        label: 'Completed',          color: 'text-gray-400' },
 ]
 
 export default function InboxPage() {
