@@ -283,12 +283,18 @@ export default function QuestionPage() {
         )}
 
         {isActive && (
-          <div className="card bg-green-50 border-green-200 text-center py-6">
-            <div className="text-2xl mb-2">⚡</div>
-            <h3 className="font-semibold text-green-800">Session in progress</h3>
-            <p className="text-sm text-green-600 mt-1">Your developer is working on it</p>
-          </div>
-        )}
+  <div className="card bg-green-50 border-green-200 text-center py-6">
+    <div className="text-2xl mb-2">⚡</div>
+    <h3 className="font-semibold text-green-800">Session in progress</h3>
+    <p className="text-sm text-green-600 mt-1">Your developer is working on it</p>
+    {question.thread?.id && (
+      <Link href={`/threads/${question.thread.id}`}
+        className="btn-primary inline-block px-6 py-2 mt-4 text-sm">
+        💬 Message your developer
+      </Link>
+    )}
+  </div>
+)}
 
         {question.status === 'OPEN' && !response && (
           <div className="card text-center py-10">
