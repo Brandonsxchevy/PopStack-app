@@ -219,4 +219,9 @@ export default function ThreadPage() {
           </div>
         </div>
         <p className="text-xs text-gray-400 mt-1.5 px-1">
-          Ent
+                 Enter to send · Shift+Enter for new line
+        </p>
+      </div>
+    </div>
+  )
+}
