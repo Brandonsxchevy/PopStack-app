@@ -194,11 +194,21 @@ export class RetainersModule {}
 @Injectable() export class TranslationService {
   constructor(private readonly db: DatabaseService) {}
   async translate(messageId: string, targetLang: string) {
-    const msg = await this.db.threadMessage.findUnique({ where: { id: messageId } });
-    if (!msg?.originalText) return { message: 'No translatable text found' };
-    if (msg.translationStatus === 'GENERATED' && msg.translationTargetLang === targetLang) {
-      return { translatedText: msg.translatedText, cached: true };
-    }
+  const msg = await this.db.threadMessage.findUnique({ where: { id: messageId } });
+  if (!msg?.originalText) return { message: 'No translatable text found' };
+  if (msg.translationStatus === 'GENERATED' && msg.translationTargetLang === targetLang) {
+    return { translatedText: msg.translatedText, cached: true };
+  }
+  try {
+    const response = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(msg.originalText)}&langpair=auto|${targetLang}`);
+    const data = await response.json();
+    const translatedText = data.responseData?.translatedText || msg.originalText;
+    await this.db.threadMessage.update({ where: { id: messageId }, data: { translatedText, translationStatus: 'GENERATED', translationTargetLang: targetLang } });
+    return { translatedText, cached: false };
+  } catch {
+    return { message: 'Translation failed' };
+  }
+}
     // In production: call DeepL API here
     // const result = await this.deepl.translate(msg.originalText, targetLang);
     const mockTranslation = `[Translation of: ${msg.originalText.substring(0, 50)}...]`;
