@@ -1,3 +1,4 @@
+import { UploadsModule } from './modules/uploads/uploads.module';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
