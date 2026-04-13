@@ -32,6 +32,17 @@ function TranslateButton({ messageId }: { messageId: string }) {
   const [loading, setLoading] = useState(false)
   const [shown, setShown] = useState(false)
   const [showLangPicker, setShowLangPicker] = useState(false)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const [pickerPos, setPickerPos] = useState({ top: 0, left: 0 })
+
+  const openPicker = () => {
+    if (shown) { setShown(false); return }
+    if (btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect()
+      setPickerPos({ top: rect.top - 220, left: rect.left })
+    }
+    setShowLangPicker(true)
+  }
 
   const translate = async (lang: string) => {
     setShowLangPicker(false)
@@ -49,19 +60,16 @@ function TranslateButton({ messageId }: { messageId: string }) {
 
   return (
     <div className="relative">
-      <button
-        onClick={() => shown ? setShown(false) : setShowLangPicker(!showLangPicker)}
-        disabled={loading}
+      <button ref={btnRef} onClick={openPicker} disabled={loading}
         className="text-xs text-gray-400 hover:text-brand transition-colors disabled:opacity-50">
         {loading ? '⏳' : '🌐'}
       </button>
 
       {showLangPicker && (
         <>
-          {/* Backdrop */}
           <div className="fixed inset-0 z-40" onClick={() => setShowLangPicker(false)} />
-          {/* Picker */}
-          <div className="absolute bottom-6 left-0 bg-white border border-gray-200 rounded-xl shadow-xl z-50 py-1 min-w-[130px]">
+          <div className="fixed bg-white border border-gray-200 rounded-xl shadow-xl z-50 py-1 min-w-[130px]"
+            style={{ top: pickerPos.top, left: pickerPos.left }}>
             <p className="text-xs text-gray-400 px-3 py-1 border-b border-gray-100">Translate to</p>
             {LANGUAGES.map(lang => (
               <button key={lang.code} onClick={() => translate(lang.code)}
@@ -77,7 +85,7 @@ function TranslateButton({ messageId }: { messageId: string }) {
         <div className="mt-1 text-xs text-gray-500 bg-yellow-50 border border-yellow-200 rounded-lg px-2 py-1.5 max-w-[180px]">
           <span className="text-yellow-600 font-medium text-xs block mb-0.5">Translation</span>
           {translated}
-          <button onClick={() => setShown(false)} className="text-gray-400 hover:text-gray-600 ml-1 text-xs">×</button>
+          <button onClick={() => setShown(false)} className="text-gray-400 hover:text-gray-600 ml-1">×</button>
         </div>
       )}
     </div>
