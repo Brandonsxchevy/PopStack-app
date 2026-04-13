@@ -65,9 +65,10 @@ export default function DeveloperProfilePage() {
       retainerEnabled,
     }),
     onSuccess: () => {
-      toast.success('Profile updated!')
-      qc.invalidateQueries({ queryKey: ['my-profile'] })
-    },
+    toast.success('Profile saved! View your public profile →')
+    qc.invalidateQueries({ queryKey: ['my-profile'] })
+    qc.refetchQueries({ queryKey: ['my-profile'] })
+  },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to save'),
   })
 
