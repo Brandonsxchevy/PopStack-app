@@ -135,6 +135,15 @@ export class SessionsService {
     return session;
   }
 
+  async getById(id: string) {
+  return this.db.session.findUnique({
+    where: { id },
+    include: {
+      question: { select: { id: true, title: true, url: true, fingerprint: true } },
+      user: { select: { id: true, name: true, avgRating: true, badges: true } },
+    },
+  });
+  }
   async accept(sessionId: string, developerId: string) {
     const session = await this.getSession(sessionId);
     if (session.developerId !== developerId) throw new ForbiddenException();
