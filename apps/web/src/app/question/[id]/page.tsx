@@ -109,6 +109,40 @@ export default function QuestionPage() {
         </div>
       )}
 
+      {/* Credentials warning */}
+{response && question.fingerprint && (
+  <div className="card border-amber-200 bg-amber-50 mb-4">
+    <div className="flex items-start gap-2">
+      <span className="text-amber-500 text-lg">🔑</span>
+      <div>
+        <p className="text-sm font-semibold text-amber-800 mb-1">
+          You may need to share access credentials
+        </p>
+        <p className="text-xs text-amber-700 mb-2">
+          To fix this issue, your developer will likely need login access to:
+        </p>
+        <ul className="text-xs text-amber-700 space-y-1">
+          {question.fingerprint.platform && question.fingerprint.platform !== 'UNKNOWN' && (
+            <li>• <strong>{question.fingerprint.platform}</strong> admin panel</li>
+          )}
+          {(() => {
+            const dnsSig = question.fingerprint.signals?.find((s: any) =>
+              s.signal?.startsWith('dns_provider:')
+            )
+            const provider = dnsSig?.signal?.replace('dns_provider: ', '')
+            return provider && provider !== question.fingerprint.platform ? (
+              <li>• <strong>{provider}</strong> DNS settings</li>
+            ) : null
+          })()}
+        </ul>
+        <p className="text-xs text-amber-600 mt-2">
+          Have your credentials ready before starting a session.
+        </p>
+      </div>
+    </div>
+  </div>
+)}
+      
       {/* Paywall */}
       {isLocked && !isActive && response && (
         <div className="card border-brand/30">
