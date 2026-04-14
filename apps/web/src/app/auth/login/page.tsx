@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
 import { toast } from 'sonner'
+import { useState, useEffect } from 'react'
 
 const schema = z.object({
   email: z.string().email(),
