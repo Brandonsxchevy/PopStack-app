@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { DatabaseService } from '@/database/database.service';
 import { PaymentsService } from '../payments/payments.service';
 import Stripe from 'stripe';
+import { Cron, CronExpression } from '@nestjs/schedule'
 
 const TIER_AMOUNTS: Record<string, number> = {
   QUICK_FOLLOWUP: 750,
@@ -41,6 +42,40 @@ export class SessionsService {
       apiVersion: '2024-04-10',
     });
   }
+
+  // Add inside SessionsService class:
+@Cron(CronExpression.EVERY_HOUR)
+async autoReleaseExpiredSessions() {
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000) // 24h ago
+
+  const expired = await this.db.session.findMany({
+    where: {
+      status: 'ENDED',
+      endedAt: { lt: cutoff },
+      escrowStatus: 'HELD',
+    },
+  })
+
+  for (const session of expired) {
+    try {
+      await this.payments.transferToDeveloper(
+        session.stripePaymentIntentId!,
+        session.developerId,
+        session.id,
+      )
+      await this.db.session.update({
+        where: { id: session.id },
+        data: { escrowStatus: 'RELEASED' },
+      })
+      await this.db.question.update({
+        where: { id: session.questionId },
+        data: { status: 'CLOSED' },
+      })
+    } catch (err) {
+      console.error(`Auto-release failed for session ${session.id}:`, err)
+    }
+  }
+}
 
   async createCheckoutSession(userId: string, dto: { questionId: string; tier: string }) {
     const question = await this.db.question.findUnique({
@@ -232,6 +267,7 @@ export class SessionsService {
 
     return { message: 'Session escalated — contract draft created', sessionId, trigger };
   }
+  
 
   private async getSession(id: string) {
     const session = await this.db.session.findUnique({ where: { id } });
