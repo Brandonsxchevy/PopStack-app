@@ -5,7 +5,7 @@ interface User {
   id: string
   name: string
   email: string
-  role: 'USER' | 'DEVELOPER'
+  role: 'USER' | 'DEVELOPER' | 'ADMIN'
   badges: string[]
   avgRating: number | null
   preferredLanguage: string
