@@ -14,6 +14,8 @@ import { DatabaseModule } from './database/database.module';
 import { HealthController } from './health.controller';
 import { EarningsModule } from './modules/earnings/earnings.module'
 import { SwipesModule } from './modules/swipes/swipes.module';
+import { AdminModule } from './modules/admin/admin.module';
+// add AdminModule to imports array
 
 // Stub modules — split into own files as you implement each feature
 import {
