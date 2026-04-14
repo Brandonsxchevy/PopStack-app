@@ -451,7 +451,6 @@ export default function ThreadPage() {
             {approve.isPending ? '...' : 'Approve & pay ✓'}
           </button>
           )}
-            )}
           </div>
         </div>
       )}
