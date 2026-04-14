@@ -30,10 +30,12 @@ export default function LoginPage() {
       const res = await api.post('/auth/login', data)
       setAuth(res.data.accessToken, res.data.user)
       if (res.data.user.role === 'DEVELOPER') {
-        router.push('/swipe')
+      router.push('/swipe')
+      } else if (res.data.user.role === 'ADMIN') {
+      router.push('/admin')
       } else {
-        router.push('/dashboard')
-      }
+  router.push('/dashboard')
+}
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Login failed')
     } finally {
