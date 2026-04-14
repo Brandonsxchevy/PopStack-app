@@ -24,14 +24,6 @@ export default function LoginPage() {
     resolver: zodResolver(schema),
   })
 
-useEffect(() => {
-  if (isAuthenticated()) {
-    if (user?.role === 'DEVELOPER') router.push('/swipe')
-    else if (user?.role === 'ADMIN') router.push('/admin')
-    else router.push('/dashboard')
-  }
-}, [isAuthenticated, user])
-
   const onSubmit = async (data: FormData) => {
     setLoading(true)
     try {
