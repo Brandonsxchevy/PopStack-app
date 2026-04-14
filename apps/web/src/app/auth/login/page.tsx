@@ -70,7 +70,7 @@ export default function LoginPage() {
       </form>
       <p className="text-sm text-center text-gray-500 mt-4">
         No account?{' '}
-        <Link href="/auth/signup" className="text-brand font-medium">Sign up">Sign up</Link>
+        <Link href="/auth/signup" className="text-brand font-medium">Sign up</Link>
       </p>
     </div>
   )
