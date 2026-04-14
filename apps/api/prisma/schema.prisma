@@ -12,6 +12,7 @@ datasource db {
 enum Role {
   USER
   DEVELOPER
+  ADMIN
 }
 
 enum SuspensionStatus {
