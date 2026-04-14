@@ -14,6 +14,7 @@ interface User {
 interface AuthState {
   token: string | null
   user: User | null
+  hydrated: boolean
   setAuth: (token: string, user: User) => void
   clearAuth: () => void
   isAuthenticated: () => boolean
@@ -25,6 +26,7 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       token: null,
       user: null,
+      hydrated: false,
       setAuth: (token, user) => {
         localStorage.setItem('popstack_token', token)
         set({ token, user })
@@ -36,6 +38,11 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: () => !!get().token,
       isDeveloper: () => get().user?.role === 'DEVELOPER',
     }),
-    { name: 'popstack_auth' }
+    {
+      name: 'popstack_auth',
+      onRehydrateStorage: () => (state) => {
+        if (state) state.hydrated = true
+      },
+    }
   )
 )
