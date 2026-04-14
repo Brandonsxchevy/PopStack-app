@@ -446,10 +446,11 @@ export default function ThreadPage() {
               ✅ Session complete — {isDev ? 'waiting for client approval' : 'approve the work to release payment'}
             </span>
             {!isDev && (
-              <button onClick={() => approve.mutate()} disabled={approve.isPending}
-                className="text-sm bg-brand text-white font-medium px-3 py-1.5 rounded-lg hover:bg-brand-dark disabled:opacity-50 shrink-0">
-                {approve.isPending ? '...' : 'Approve & pay ✓'}
-              </button>
+            <button onClick={() => approve.mutate()} disabled={approve.isPending}
+            className="text-sm bg-brand text-white font-medium px-4 py-2 rounded-lg hover:bg-brand-dark disabled:opacity-50 shrink-0 animate-bounce shadow-lg shadow-brand/40">
+            {approve.isPending ? '...' : 'Approve & pay ✓'}
+          </button>
+          )}
             )}
           </div>
         </div>
