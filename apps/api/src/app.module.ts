@@ -12,26 +12,14 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { ProposalsModule } from './modules/proposals/proposals.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthController } from './health.controller';
-import { EarningsModule } from './modules/earnings/earnings.module'
+import { EarningsModule } from './modules/earnings/earnings.module';
 import { SwipesModule } from './modules/swipes/swipes.module';
 import { AdminModule } from './modules/admin/admin.module';
-import { ScheduleModule } from '@nestjs/schedule'
-
-@Module({
-  imports: [
-    ScheduleModule.forRoot(),
-    // ... rest of imports
-  ]
-})
-// add AdminModule to imports array
-
-// Stub modules — split into own files as you implement each feature
 import {
   UsersModule, ContractsModule, JobsModule, RatingsModule,
   ThreadsModule, MessagesModule, LinksModule, ProfilesModule,
   RetainersModule, TranslationModule, ModerationModule,
 } from './modules/stubs';
-
 
 @Module({
   imports: [
@@ -39,7 +27,6 @@ import {
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     ScheduleModule.forRoot(),
     DatabaseModule,
-    // Core flow — fully scaffolded
     AuthModule,
     QuestionsModule,
     FingerprintModule,
@@ -50,7 +37,7 @@ import {
     EarningsModule,
     SwipesModule,
     UploadsModule,
-    // Stub modules — implement in order listed in README
+    AdminModule,
     UsersModule,
     ContractsModule,
     JobsModule,
