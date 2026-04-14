@@ -17,8 +17,16 @@ type FormData = z.infer<typeof schema>
 
 export default function LoginPage() {
   const router = useRouter()
-  const setAuth = useAuthStore(s => s.setAuth)
+  const { setAuth, isAuthenticated, user } = useAuthStore()
   const [loading, setLoading] = useState(false)
+
+  // Redirect if already logged in
+  if (isAuthenticated()) {
+    if (user?.role === 'DEVELOPER') router.push('/swipe')
+    else if (user?.role === 'ADMIN') router.push('/admin')
+    else router.push('/dashboard')
+    return null
+  }
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -30,12 +38,12 @@ export default function LoginPage() {
       const res = await api.post('/auth/login', data)
       setAuth(res.data.accessToken, res.data.user)
       if (res.data.user.role === 'DEVELOPER') {
-      router.push('/swipe')
+        router.push('/swipe')
       } else if (res.data.user.role === 'ADMIN') {
-      router.push('/admin')
+        router.push('/admin')
       } else {
-  router.push('/dashboard')
-}
+        router.push('/dashboard')
+      }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Login failed')
     } finally {
