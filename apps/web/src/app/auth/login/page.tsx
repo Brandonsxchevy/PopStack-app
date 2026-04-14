@@ -20,7 +20,12 @@ export default function LoginPage() {
   const { setAuth, isAuthenticated, user } = useAuthStore()
   const [loading, setLoading] = useState(false)
 
-  // Redirect if already logged in
+  // ✅ ALL hooks must be declared first
+  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+    resolver: zodResolver(schema),
+  })
+
+  // ✅ Redirect logic AFTER all hooks
   if (isAuthenticated()) {
     if (user?.role === 'DEVELOPER') router.push('/swipe')
     else if (user?.role === 'ADMIN') router.push('/admin')
@@ -28,9 +33,8 @@ export default function LoginPage() {
     return null
   }
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
-    resolver: zodResolver(schema),
-  })
+  return ( ... ) // rest unchanged
+}
 
   const onSubmit = async (data: FormData) => {
     setLoading(true)
