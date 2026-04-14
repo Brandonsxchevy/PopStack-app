@@ -581,9 +581,9 @@ model Rating {
   rateeId     String
   ratee       User     @relation("RatingsReceived", fields: [rateeId], references: [id])
   overall     Int
-  dimension1  Int
-  dimension2  Int
-  dimension3  Int
+  dimension1  Int?
+  dimension2  Int?
+  dimension3  Int?
   comment     String?
   isFlagged   Boolean  @default(false)
   isVisible   Boolean  @default(false)

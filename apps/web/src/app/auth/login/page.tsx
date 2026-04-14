@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
@@ -23,13 +23,6 @@ export default function LoginPage() {
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
-
-  if (isAuthenticated()) {
-    if (user?.role === 'DEVELOPER') router.push('/swipe')
-    else if (user?.role === 'ADMIN') router.push('/admin')
-    else router.push('/dashboard')
-    return null
-  }
 
   const onSubmit = async (data: FormData) => {
     setLoading(true)

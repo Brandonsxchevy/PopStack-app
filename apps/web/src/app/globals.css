@@ -29,4 +29,13 @@
   .input {
     @apply w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand;
   }
+  .animate-pop {
+    animation: pop 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes pop {
+  0%   { transform: translateY(0) scale(1); box-shadow: 0 4px 14px rgba(109,40,217,0.4); }
+  50%  { transform: translateY(-6px) scale(1.04); box-shadow: 0 12px 24px rgba(109,40,217,0.5); }
+  100% { transform: translateY(0) scale(1); box-shadow: 0 4px 14px rgba(109,40,217,0.4); }
 }
