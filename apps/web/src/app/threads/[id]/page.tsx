@@ -29,15 +29,16 @@ const LANGUAGES = [
 ]
 
 async function googleTranslate(text: string, targetLang: string): Promise<{ translated: string; detectedLang: string }> {
+const getSummary = async () => {
+  if (summary) return
+  setLoadingSummary(true)
   try {
-    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`
-    const res = await fetch(url)
-    const data = await res.json()
-    const translated = data[0]?.map((s: any) => s[0]).join('') || text
-    const detectedLang = data[2] || 'en'
-    return { translated, detectedLang }
+    const res = await api.post(`/questions/${question.id}/summary`)
+    setSummary(res.data.summary || 'Could not generate summary')
   } catch {
-    return { translated: text, detectedLang: 'en' }
+    toast.error('Failed to generate summary')
+  } finally {
+    setLoadingSummary(false)
   }
 }
 
