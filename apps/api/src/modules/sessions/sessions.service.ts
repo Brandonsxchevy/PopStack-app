@@ -262,7 +262,7 @@ async autoReleaseExpiredSessions() {
 
   await this.db.session.update({
     where: { id: sessionId },
-    data: { status: 'CLOSED', escrowStatus: 'RELEASED' },
+    data: { status: 'ENDED', escrowStatus: 'RELEASED' },
   });
 
   await this.db.question.update({
