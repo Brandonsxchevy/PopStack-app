@@ -255,15 +255,16 @@ export default function ThreadPage() {
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to complete'),
   })
 
-  const approve = useMutation({
-    mutationFn: () => api.post(`/sessions/${thread.sessionId}/approve`),
-    onSuccess: () => {
-      toast.success('Work approved — payment released! 🎉')
-      qc.invalidateQueries({ queryKey: ['session', thread?.sessionId] })
-  setShowRatingModal(true)
-},
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to approve'),
-  })
+const approve = useMutation({
+  mutationFn: () => api.post(`/sessions/${thread.sessionId}/approve`),
+  onSuccess: () => {
+    toast.success('Work approved — payment released! 🎉')
+    qc.invalidateQueries({ queryKey: ['session', thread?.sessionId] })
+    qc.invalidateQueries({ queryKey: ['thread', id] })  // ← add this
+    setShowRatingModal(true)
+  },
+  onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to approve'),
+})
 
   const send = useMutation({
     mutationFn: () => {
