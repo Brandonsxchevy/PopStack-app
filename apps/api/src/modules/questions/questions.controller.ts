@@ -40,4 +40,10 @@ export class QuestionsController {
   deleteQuestion(@Param('id') id: string, @CurrentUser() user: any) {
     return this.questionsService.deleteQuestion(id, user.id);
   }
+
+  @Post(':id/summary')
+  @Roles('DEVELOPER')
+  getSummary(@Param('id') id: string) {
+  return this.questionsService.getSummary(id)
+}
 }
