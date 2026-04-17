@@ -179,25 +179,34 @@ async autoReleaseExpiredSessions() {
     },
   });
   }
+  
   async accept(sessionId: string, developerId: string) {
-    const session = await this.getSession(sessionId);
-    if (session.developerId !== developerId) throw new ForbiddenException();
-    if (session.status !== 'PENDING_ACCEPT') throw new BadRequestException('Session not awaiting acceptance');
+  const session = await this.getSession(sessionId)
+  if (session.developerId !== developerId) throw new ForbiddenException()
+  if (session.status !== 'PENDING_ACCEPT') throw new BadRequestException('Session not awaiting acceptance')
 
-    await this.payments.capture(session.stripePaymentIntentId!);
+  await this.payments.capture(session.stripePaymentIntentId!)
 
-    const updated = await this.db.session.update({
-      where: { id: sessionId },
-      data: { status: 'ACTIVE', startedAt: new Date(), escrowStatus: 'HELD' },
-    });
+  await this.db.session.update({
+    where: { id: sessionId },
+    data: { status: 'ACTIVE', startedAt: new Date(), escrowStatus: 'HELD' },
+  })
 
-    await this.db.question.update({
-      where: { id: session.questionId },
-      data: { status: 'AWAITING_ACCEPT' },
-    });
+  await this.db.question.update({
+    where: { id: session.questionId },
+    data: { status: 'AWAITING_ACCEPT' },
+  })
 
-    return updated;
-  }
+  await this.db.thread.updateMany({
+    where: { sessionId },
+    data: {
+      devSection: 'ACTIVE_WORK',
+      status: 'ACTIVE',
+    },
+  })
+
+  return { message: 'Session accepted' }
+}
 
   async decline(sessionId: string, developerId: string) {
     const session = await this.getSession(sessionId);
@@ -228,6 +237,14 @@ async autoReleaseExpiredSessions() {
       where: { id: sessionId },
       data: { status: 'ENDED', endedAt: new Date() },
     });
+
+    await this.db.thread.updateMany({
+  where: { sessionId },
+  data: {
+    devSection: 'COMPLETED',
+    status: 'COMPLETED',
+  },
+})
 
     return { message: 'Session complete — 24h review window started' };
   }
