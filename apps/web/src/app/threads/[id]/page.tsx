@@ -29,16 +29,15 @@ const LANGUAGES = [
 ]
 
 async function googleTranslate(text: string, targetLang: string): Promise<{ translated: string; detectedLang: string }> {
-const getSummary = async () => {
-  if (summary) return
-  setLoadingSummary(true)
   try {
-    const res = await api.post(`/questions/${question.id}/summary`)
-    setSummary(res.data.summary || 'Could not generate summary')
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`
+    const res = await fetch(url)
+    const data = await res.json()
+    const translated = data[0]?.map((s: any) => s[0]).join('') || text
+    const detectedLang = data[2] || 'en'
+    return { translated, detectedLang }
   } catch {
-    toast.error('Failed to generate summary')
-  } finally {
-    setLoadingSummary(false)
+    return { translated: text, detectedLang: 'en' }
   }
 }
 
@@ -54,28 +53,8 @@ function QuestionPanel({ thread, session }: { thread: any; session: any }) {
     if (summary) return
     setLoadingSummary(true)
     try {
-      const prompt = `You are helping a web developer quickly understand a client's website problem.
-
-Question title: ${question?.title}
-Description: ${question?.description || 'None provided'}
-URL: ${question?.url || 'None provided'}
-Platform: ${fingerprint?.platform || 'Unknown'}
-DNS Provider: ${fingerprint?.signals?.find((s: any) => s.signal?.startsWith('dns_provider:'))?.signal?.replace('dns_provider: ', '') || 'Unknown'}
-Session tier: ${TIER_LABELS[session?.tier] || 'Unknown'}
-
-In 3-4 sentences: summarize the likely problem, what access the developer will need, and the fastest path to a fix. Be direct and practical.`
-
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          messages: [{ role: 'user', content: prompt }],
-        }),
-      })
-      const data = await response.json()
-      setSummary(data.content?.[0]?.text || 'Could not generate summary')
+      const res = await api.post(`/questions/${question.id}/summary`)
+      setSummary(res.data.summary || 'Could not generate summary')
     } catch {
       toast.error('Failed to generate summary')
     } finally {
@@ -83,7 +62,7 @@ In 3-4 sentences: summarize the likely problem, what access the developer will n
     }
   }
 
-  if (!question) return null
+ if (!question) return null
 
   return (
     <div className="border-b border-gray-200 bg-white">
