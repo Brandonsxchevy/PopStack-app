@@ -171,4 +171,30 @@ async getMyQuestions(userId: string) {
       label: score >= 8 ? 'high' : score >= 5 ? 'medium' : 'low',
     };
   }
+  async getSummary(id: string) {
+  const question = await this.db.question.findUnique({
+    where: { id },
+    include: { fingerprint: true },
+  })
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY!,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      messages: [{
+        role: 'user',
+        content: `You are helping a web developer quickly understand a client's website problem. In 3-4 sentences, summarize the likely problem, what access the developer will need, and the fastest path to a fix. Be direct and practical.\n\nTitle: ${question?.title}\nDescription: ${question?.description || 'None'}\nURL: ${question?.url || 'None'}\nPlatform: ${question?.fingerprint?.platform || 'Unknown'}`,
+      }],
+    }),
+  })
+
+  const data = await response.json()
+  return { summary: data.content?.[0]?.text }
+}
 }
