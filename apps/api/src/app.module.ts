@@ -1,4 +1,3 @@
-import { ThreadsModule } from './modules/threads/threads.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
@@ -50,7 +49,6 @@ import {
     RetainersModule,
     TranslationModule,
     ModerationModule,
-    ThreadsModule,
   ],
   controllers: [HealthController],
 })
