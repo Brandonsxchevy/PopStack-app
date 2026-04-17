@@ -627,6 +627,8 @@ model Thread {
   lastMessagePreview  String?
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
+  devTotalTimeSeconds   Int  @default(0)
+  devChatTimeSeconds    Int  @default(0)
 
   messages            ThreadMessage[]
 }
