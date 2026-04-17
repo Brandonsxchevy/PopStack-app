@@ -4,27 +4,158 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { api } from '@/lib/api'
 
-const STATUS_CONFIG: Record<string, { label: string; style: string; icon: string }> = {
-  OPEN:            { label: 'Waiting for response',  style: 'bg-blue-50 text-blue-700',     icon: '👀' },
-  LOCKED:          { label: 'Response received',     style: 'bg-amber-50 text-amber-700',   icon: '🔒' },
-  AWAITING_ACCEPT: { label: 'Payment received',      style: 'bg-purple-50 text-purple-700', icon: '⏳' },
-  ACTIVE:          { label: 'Session in progress',   style: 'bg-green-50 text-green-700',   icon: '⚡' },
-  ENDED:           { label: 'Awaiting your approval',style: 'bg-orange-50 text-orange-700', icon: '✅' },
-  CLOSED:          { label: 'Completed',             style: 'bg-gray-50 text-gray-500',     icon: '✓' },
-  EXPIRED:         { label: 'Expired',               style: 'bg-red-50 text-red-500',       icon: '⚠️' },
+const STEPS = ['Posted', 'Response', 'Booked', 'In session', 'Approve']
+
+const STATUS_STEP: Record<string, number> = {
+  OPEN: 0,
+  LOCKED: 1,
+  AWAITING_ACCEPT: 2,
+  ACTIVE: 3,
+  ENDED: 4,
+  CLOSED: 5,
+  EXPIRED: 0,
 }
 
-const PopIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-    className="w-4 h-4">
-    <path d="M7 17L17 7M17 7H7M17 7v10" />
-  </svg>
-)
+const STATUS_CONFIG: Record<string, { label: string; stage: string; color: string; badgeStyle: string }> = {
+  OPEN:            { label: 'Waiting for response',  stage: 'in-progress', color: '#378ADD', badgeStyle: 'background:#E6F1FB;color:#0C447C' },
+  LOCKED:          { label: 'Response received',     stage: 'in-progress', color: '#BA7517', badgeStyle: 'background:#FAEEDA;color:#633806' },
+  AWAITING_ACCEPT: { label: 'Awaiting developer',    stage: 'in-progress', color: '#7F77DD', badgeStyle: 'background:#EEEDFE;color:#3C3489' },
+  ACTIVE:          { label: 'Session in progress',   stage: 'active',      color: '#639922', badgeStyle: 'background:#EAF3DE;color:#27500A' },
+  ENDED:           { label: 'Review & approve',      stage: 'ended',       color: '#D85A30', badgeStyle: 'background:#FAECE7;color:#712B13' },
+  CLOSED:          { label: 'Completed',             stage: 'completed',   color: '#888780', badgeStyle: 'background:#F1EFE8;color:#444441' },
+  EXPIRED:         { label: 'Expired',               stage: 'completed',   color: '#E24B4A', badgeStyle: 'background:#FCEBEB;color:#791F1F' },
+}
+
+function ProgressBar({ step }: { step: number }) {
+  return (
+    <div style={{ display: 'flex', gap: 3, marginBottom: 10 }}>
+      {STEPS.map((_, i) => (
+        <div key={i} style={{
+          flex: 1, height: 3, borderRadius: 2,
+          background: i < step ? '#6C2FFF' : i === step ? '#AFA9EC' : 'var(--color-border-tertiary)',
+        }} />
+      ))}
+    </div>
+  )
+}
+
+function QuestionCard({ q, ghost = 0 }: { q: any; ghost?: number }) {
+  const router = useRouter()
+  const config = STATUS_CONFIG[q.status] || STATUS_CONFIG.OPEN
+  const step = STATUS_STEP[q.status] ?? 0
+  const isActive = q.status === 'ACTIVE'
+  const isEnded = q.status === 'ENDED'
+  const isCompleted = ['CLOSED', 'EXPIRED'].includes(q.status)
+
+  const borderColor = isActive ? '#97C459' : isEnded ? '#F0997B' : 'var(--color-border-tertiary)'
+  const borderWidth = isActive || isEnded ? '1.5px' : '0.5px'
+
+  return (
+    <div style={{ position: 'relative', paddingBottom: ghost > 0 ? 10 : 0, marginBottom: 12 }}>
+      {ghost >= 2 && (
+        <div style={{
+          position: 'absolute', left: 10, right: -10, top: 8, bottom: 2,
+          background: 'var(--color-background-secondary)',
+          border: '0.5px solid var(--color-border-tertiary)',
+          borderRadius: 12, zIndex: 0,
+        }} />
+      )}
+      {ghost >= 1 && (
+        <div style={{
+          position: 'absolute', left: 6, right: -6, top: 4, bottom: 2,
+          background: 'var(--color-background-primary)',
+          border: '0.5px solid var(--color-border-tertiary)',
+          borderRadius: 12, zIndex: 1,
+        }} />
+      )}
+      <div
+        onClick={() => router.push(q.thread?.id ? `/threads/${q.thread.id}` : `/question/${q.id}`)}
+        style={{
+          position: 'relative', zIndex: 2,
+          background: 'var(--color-background-primary)',
+          border: `${borderWidth} solid ${borderColor}`,
+          borderRadius: 12, padding: '14px 16px',
+          cursor: 'pointer', opacity: isCompleted ? 0.7 : 1,
+          transition: 'transform 0.15s',
+        }}
+        onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-2px)')}
+        onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
+      >
+        <ProgressBar step={step} />
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+              {isActive && (
+                <span style={{
+                  width: 7, height: 7, borderRadius: '50%',
+                  background: '#639922', display: 'inline-block', flexShrink: 0,
+                  animation: 'pulse 1.5s infinite',
+                }} />
+              )}
+              <span style={{
+                fontSize: 14, fontWeight: 500,
+                color: isCompleted ? 'var(--color-text-secondary)' : 'var(--color-text-primary)',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block',
+              }}>
+                {q.title}
+              </span>
+            </div>
+            {q.url && (
+              <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {q.url}
+              </div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+              <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 999, fontWeight: 500, ...Object.fromEntries(config.badgeStyle.split(';').map(s => { const [k,v] = s.split(':'); return [k?.trim().replace(/-([a-z])/g, (_,c) => c.toUpperCase()), v?.trim()] }).filter(([k]) => k)) }}>
+                {config.label}
+              </span>
+              {isEnded && q.thread?.id && (
+                <Link
+                  href={`/threads/${q.thread.id}`}
+                  onClick={e => e.stopPropagation()}
+                  style={{ fontSize: 12, background: '#D85A30', color: 'white', padding: '5px 12px', borderRadius: 8, textDecoration: 'none', fontWeight: 500 }}>
+                  Approve & pay →
+                </Link>
+              )}
+              {isActive && q.thread?.id && (
+                <Link
+                  href={`/threads/${q.thread.id}`}
+                  onClick={e => e.stopPropagation()}
+                  style={{ fontSize: 12, background: '#6C2FFF', color: 'white', padding: '5px 12px', borderRadius: 8, textDecoration: 'none', fontWeight: 500 }}>
+                  Open chat →
+                </Link>
+              )}
+              {!isActive && !isEnded && (
+                <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>
+                  {new Date(q.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function StageSection({ label, dot, questions }: { label: string; dot: string; questions: any[] }) {
+  if (questions.length === 0) return null
+  return (
+    <div style={{ marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+        <span style={{ width: 7, height: 7, borderRadius: '50%', background: dot, display: 'inline-block' }} />
+        <span style={{ fontSize: 11, fontWeight: 500, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'var(--color-text-tertiary)' }}>
+          {label}
+        </span>
+      </div>
+      {questions.map((q, i) => (
+        <QuestionCard key={q.id} q={q} ghost={Math.max(0, questions.length - 1 - i) > 1 ? 2 : Math.max(0, questions.length - 1 - i)} />
+      ))}
+    </div>
+  )
+}
 
 export default function DashboardPage() {
-  const router = useRouter()
-
   const { data: questions = [], isLoading } = useQuery({
     queryKey: ['my-questions'],
     queryFn: () => api.get('/questions/my').then(r => r.data),
@@ -32,160 +163,42 @@ export default function DashboardPage() {
   })
 
   if (isLoading) return (
-    <div className="text-center py-20 text-gray-400">Loading your requests...</div>
-  )
-
-  if (questions.length === 0) return (
-    <div className="text-center py-20">
-      <div className="text-5xl mb-4">🧩</div>
-      <h2 className="text-xl font-semibold mb-2 text-gray-800">No requests yet</h2>
-      <p className="text-gray-500 mb-6">Got a tech problem? Pop it and a Stacker will help.</p>
-      <Link href="/ask" className="btn-primary px-8 py-3 text-base">Submit your first request</Link>
+    <div style={{ textAlign: 'center', padding: '5rem 0', color: 'var(--color-text-tertiary)' }}>
+      Loading your requests...
     </div>
   )
 
-  const activeQuestions = questions.filter((q: any) =>
-    ['OPEN', 'LOCKED', 'AWAITING_ACCEPT', 'ACTIVE', 'ENDED'].includes(q.status))
-  const completedQuestions = questions.filter((q: any) =>
-    ['CLOSED', 'EXPIRED'].includes(q.status))
+  if (questions.length === 0) return (
+    <div style={{ textAlign: 'center', padding: '5rem 0' }}>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>🧩</div>
+      <h2 style={{ fontSize: 20, fontWeight: 500, marginBottom: 8 }}>No requests yet</h2>
+      <p style={{ color: 'var(--color-text-secondary)', marginBottom: 24 }}>Got a tech problem? Pop it and a Stacker will help.</p>
+      <Link href="/ask" className="btn-primary" style={{ padding: '10px 32px' }}>Submit your first request</Link>
+    </div>
+  )
 
-  const renderQuestion = (q: any) => {
-    const config = STATUS_CONFIG[q.status] || STATUS_CONFIG.OPEN
-    const isActionRequired = ['AWAITING_ACCEPT', 'ACTIVE', 'ENDED'].includes(q.status)
-    const isActive = q.status === 'ACTIVE'
-    const isEnded = q.status === 'ENDED'
-
-    return (
-      <div
-        key={q.id}
-        onClick={() => router.push(`/question/${q.id}`)}
-        className={`card cursor-pointer group hover:-translate-y-1 hover:shadow-lg transition-all duration-200 ${
-          isActive ? 'border-green-300 border-2' :
-          isEnded ? 'border-orange-300 border-2' : ''
-        }`}>
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              {isActive && <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse shrink-0" />}
-              <span className="font-medium text-gray-900 truncate block group-hover:text-brand transition-colors">
-                {q.title}
-              </span>
-            </div>
-            {q.url && <div className="text-xs text-gray-400 truncate mt-0.5">{q.url}</div>}
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
-              {q.fingerprint?.platform && q.fingerprint.platform !== 'UNKNOWN' && (
-                <span className="text-xs bg-brand-light text-brand px-2 py-0.5 rounded-full">
-                  {q.fingerprint.platform}
-                </span>
-              )}
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${config.style}`}>
-                {config.icon} {config.label}
-              </span>
-              {q.responses?.length > 0 && (
-                <span className="text-xs text-green-600 font-medium">
-                  {q.responses.length} response{q.responses.length > 1 ? 's' : ''}
-                </span>
-              )}
-            </div>
-
-            {/* Action buttons */}
-            <div className="flex items-center gap-2 mt-3">
-              {isEnded && q.thread?.id && (
-                <Link
-                  href={`/threads/${q.thread.id}`}
-                  onClick={e => e.stopPropagation()}
-                  className="text-xs bg-orange-500 text-white font-medium px-3 py-1.5 rounded-lg hover:bg-orange-600 transition-colors">
-                  ✅ Approve & release payment
-                </Link>
-              )}
-              {isActive && q.thread?.id && (
-                <Link
-                  href={`/threads/${q.thread.id}`}
-                  onClick={e => e.stopPropagation()}
-                  className="text-xs bg-green-500 text-white font-medium px-3 py-1.5 rounded-lg hover:bg-green-600 transition-colors">
-                  💬 Open chat
-                </Link>
-              )}
-              {q.status === 'AWAITING_ACCEPT' && q.thread?.id && (
-                <Link
-                  href={`/threads/${q.thread.id}`}
-                  onClick={e => e.stopPropagation()}
-                  className="text-xs bg-purple-500 text-white font-medium px-3 py-1.5 rounded-lg hover:bg-purple-600 transition-colors">
-                  💬 View chat
-                </Link>
-              )}
-              {!isActionRequired && q.thread?.id && (
-                <Link
-                  href={`/threads/${q.thread.id}`}
-                  onClick={e => e.stopPropagation()}
-                  className="text-xs text-brand font-medium hover:underline">
-                  💬 Chat
-                </Link>
-              )}
-            </div>
-          </div>
-
-          {/* Pop icon + date */}
-          <div className="flex flex-col items-end gap-2 shrink-0">
-            <div className="text-gray-300 group-hover:text-brand group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-200">
-              <PopIcon />
-            </div>
-            <div className="text-xs text-gray-400">
-              {new Date(q.createdAt).toLocaleDateString()}
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  const active = questions.filter((q: any) => q.status === 'ACTIVE')
+  const ended = questions.filter((q: any) => q.status === 'ENDED')
+  const inProgress = questions.filter((q: any) => ['OPEN', 'LOCKED', 'AWAITING_ACCEPT'].includes(q.status))
+  const completed = questions.filter((q: any) => ['CLOSED', 'EXPIRED'].includes(q.status))
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">My requests</h1>
-        <Link href="/ask" className="btn-primary px-4 py-2 text-sm">+ New request</Link>
+      <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+        <h1 style={{ fontSize: 22, fontWeight: 500 }}>My requests</h1>
+        <Link href="/ask" className="btn-primary" style={{ fontSize: 13, padding: '6px 14px' }}>+ New request</Link>
       </div>
 
-      {activeQuestions.length > 0 && (
-        <div className="mb-6">
-          {activeQuestions.some((q: any) => q.status === 'ACTIVE') && (
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-green-600 mb-3">
-              ⚡ Active sessions
-            </h2>
-          )}
-          <div className="space-y-3">
-            {activeQuestions.filter((q: any) => q.status === 'ACTIVE').map(renderQuestion)}
-          </div>
+      <StageSection label="Session active" dot="#639922" questions={active} />
+      <StageSection label="Awaiting your approval" dot="#D85A30" questions={ended} />
+      <StageSection label="In progress" dot="#888780" questions={inProgress} />
 
-          {activeQuestions.some((q: any) => q.status === 'ENDED') && (
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-orange-600 mb-3 mt-5">
-              ✅ Awaiting your approval
-            </h2>
-          )}
-          <div className="space-y-3">
-            {activeQuestions.filter((q: any) => q.status === 'ENDED').map(renderQuestion)}
-          </div>
-
-          {activeQuestions.some((q: any) => ['OPEN', 'LOCKED', 'AWAITING_ACCEPT'].includes(q.status)) && (
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3 mt-5">
-              In progress
-            </h2>
-          )}
-          <div className="space-y-3">
-            {activeQuestions.filter((q: any) => ['OPEN', 'LOCKED', 'AWAITING_ACCEPT'].includes(q.status)).map(renderQuestion)}
-          </div>
-        </div>
-      )}
-
-      {completedQuestions.length > 0 && (
-        <div>
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">
-            Completed
-          </h2>
-          <div className="space-y-3">
-            {completedQuestions.map(renderQuestion)}
-          </div>
-        </div>
+      {completed.length > 0 && (
+        <>
+          <hr style={{ border: 'none', borderTop: '0.5px solid var(--color-border-tertiary)', margin: '1.5rem 0' }} />
+          <StageSection label="Completed" dot="#B4B2A9" questions={completed} />
+        </>
       )}
     </div>
   )
