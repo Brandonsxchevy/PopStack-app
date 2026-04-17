@@ -249,29 +249,29 @@ async autoReleaseExpiredSessions() {
     return { message: 'Session complete — 24h review window started' };
   }
 
-  async approve(sessionId: string, userId: string) {
-    const session = await this.getSession(sessionId);
-    if (session.userId !== userId) throw new ForbiddenException();
-    if (session.status !== 'ENDED') throw new BadRequestException();
+ async approve(sessionId: string, userId: string) {
+  const session = await this.getSession(sessionId);
+  if (session.userId !== userId) throw new ForbiddenException();
+  if (session.status !== 'ENDED') throw new BadRequestException();
 
-    await this.payments.transferToDeveloper(
-      session.stripePaymentIntentId!,
-      session.developerId,
-      sessionId,
-    );
+  await this.payments.transferToDeveloper(
+    session.stripePaymentIntentId!,
+    session.developerId,
+    sessionId,
+  );
 
-    await this.db.session.update({
-      where: { id: sessionId },
-      data: { escrowStatus: 'RELEASED' },
-    });
+  await this.db.session.update({
+    where: { id: sessionId },
+    data: { status: 'CLOSED', escrowStatus: 'RELEASED' },
+  });
 
-    await this.db.question.update({
-      where: { id: session.questionId },
-      data: { status: 'CLOSED' },
-    });
+  await this.db.question.update({
+    where: { id: session.questionId },
+    data: { status: 'CLOSED' },
+  });
 
-    return { message: 'Approved — payment released to developer' };
-  }
+  return { message: 'Approved — payment released to developer' };
+}
 
   async escalate(sessionId: string, developerId: string, trigger: string) {
     const session = await this.getSession(sessionId);
