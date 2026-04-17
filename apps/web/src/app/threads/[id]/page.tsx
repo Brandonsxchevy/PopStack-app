@@ -41,6 +41,116 @@ async function googleTranslate(text: string, targetLang: string): Promise<{ tran
   }
 }
 
+function DevTimeTracker({ threadId, isActive }: { threadId: string; isActive: boolean }) {
+  const [open, setOpen] = useState(false)
+  const [totalSeconds, setTotalSeconds] = useState(0)
+  const [chatSeconds, setChatSeconds] = useState(0)
+  const [saved, setSaved] = useState(false)
+  const totalRef = useRef(0)
+  const chatRef = useRef(0)
+  const chatActiveRef = useRef(true)
+
+  useEffect(() => {
+    if (!isActive) return
+    const interval = setInterval(() => {
+      totalRef.current += 1
+      if (chatActiveRef.current) chatRef.current += 1
+      setTotalSeconds(totalRef.current)
+      setChatSeconds(chatRef.current)
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [isActive])
+
+  const save = async () => {
+    if (totalRef.current === 0) return
+    try {
+      await api.patch(`/threads/${threadId}/time`, {
+        totalSeconds: totalRef.current,
+        chatSeconds: chatRef.current,
+      })
+      setSaved(true)
+      totalRef.current = 0
+      chatRef.current = 0
+      setTotalSeconds(0)
+      setChatSeconds(0)
+    } catch {
+      toast.error('Failed to save time log')
+    }
+  }
+
+  useEffect(() => {
+    const handleUnload = () => {
+      if (totalRef.current > 0) {
+        navigator.sendBeacon(
+          `${process.env.NEXT_PUBLIC_API_URL}/threads/${threadId}/time`,
+          JSON.stringify({ totalSeconds: totalRef.current, chatSeconds: chatRef.current })
+        )
+      }
+    }
+    window.addEventListener('beforeunload', handleUnload)
+    return () => window.removeEventListener('beforeunload', handleUnload)
+  }, [threadId])
+
+  const fmt = (s: number) => {
+    const m = Math.floor(s / 60)
+    const sec = s % 60
+    return `${m}:${sec.toString().padStart(2, '0')}`
+  }
+
+  if (!isActive) return null
+
+  return (
+    <div style={{
+      position: 'fixed', bottom: 80, right: 16, zIndex: 50,
+      background: 'var(--color-background-primary)',
+      border: '0.5px solid var(--color-border-secondary)',
+      borderRadius: 12, overflow: 'hidden',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+      minWidth: 180,
+    }}>
+      <button
+        onClick={() => setOpen(!open)}
+        style={{
+          width: '100%', padding: '8px 12px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: 'none', border: 'none', cursor: 'pointer',
+          fontSize: 12, fontWeight: 500, color: 'var(--color-text-primary)',
+        }}
+      >
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#639922', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
+          {fmt(totalSeconds)}
+        </span>
+        <span style={{ color: 'var(--color-text-tertiary)' }}>{open ? '▼' : '▲'}</span>
+      </button>
+      {open && (
+        <div style={{ padding: '8px 12px 12px', borderTop: '0.5px solid var(--color-border-tertiary)' }}>
+          <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginBottom: 6 }}>This session</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+            <span style={{ color: 'var(--color-text-secondary)' }}>Total time</span>
+            <span style={{ fontWeight: 500 }}>{fmt(totalSeconds)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 12 }}>
+            <span style={{ color: 'var(--color-text-secondary)' }}>In chat</span>
+            <span style={{ fontWeight: 500 }}>{fmt(chatSeconds)}</span>
+          </div>
+          <button
+            onClick={save}
+            style={{
+              width: '100%', padding: '5px 0', borderRadius: 8,
+              background: saved ? '#EAF3DE' : '#6C2FFF',
+              color: saved ? '#27500A' : 'white',
+              border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 500,
+            }}
+          >
+            {saved ? 'Saved ✓' : 'Save time log'}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function QuestionPanel({ thread, session }: { thread: any; session: any }) {
   const [open, setOpen] = useState(false)
   const [summary, setSummary] = useState<string | null>(null)
@@ -556,14 +666,17 @@ const approve = useMutation({
           </>
         )}
       </div>
-      {showRatingModal && session && (
-        <RatingModal
+     {showRatingModal && session && (
+  <RatingModal
     sessionId={thread.sessionId}
     rateeType="developer"
     rateeName={thread.developer?.name || 'your developer'}
-    onClose={() => setShowRatingModal(false)}
-  />
-    )}
+    onClose={() => {
+      setShowRatingModal(false)
+      router.push('/dashboard')
+      }}
+    />
+  )}
       {showDevRatingModal && session && (
       <RatingModal
     sessionId={thread.sessionId}
@@ -572,6 +685,9 @@ const approve = useMutation({
     onClose={() => setShowDevRatingModal(false)}
   />
 )}
+
+  <DevTimeTracker threadId={id as string} isActive={isActive && isDev} />
+      
     </div>
   )
 }
