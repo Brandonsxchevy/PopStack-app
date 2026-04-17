@@ -42,7 +42,6 @@ import {
     ContractsModule,
     JobsModule,
     RatingsModule,
-    ThreadsModule,
     MessagesModule,
     LinksModule,
     ProfilesModule,
