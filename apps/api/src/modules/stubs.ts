@@ -89,20 +89,39 @@ export class RatingsModule {}
       if (role === 'DEVELOPER') where.devSection = section.toUpperCase();
       else where.userSection = section.toUpperCase();
     }
-   return this.db.thread.findMany({ where, include: { question: { select: { title: true, clarityScore: true, fingerprint: true } } }, orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }] });  }
-  getThread(id: string) { return this.db.thread.findUnique({ where: { id }, include: { messages: { orderBy: { createdAt: 'asc' }, take: 30 }, user: { select: { id: true, name: true } }, developer: { select: { id: true, name: true } }, question: { select: { id: true, title: true, url: true } } } }); }
+    return this.db.thread.findMany({ where, include: { question: { select: { title: true, clarityScore: true, fingerprint: true } } }, orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }] });
+  }
+  getThread(id: string) {
+    return this.db.thread.findUnique({ where: { id }, include: { messages: { orderBy: { createdAt: 'asc' }, take: 30 }, user: { select: { id: true, name: true } }, developer: { select: { id: true, name: true } }, question: { select: { id: true, title: true, url: true, fingerprint: true } } } });
+  }
   getCounts(userId: string, role: string) {
-  const field = role === 'DEVELOPER' ? 'developerId' : 'userId';
-  const unreadField = role === 'DEVELOPER' ? 'devUnreadCount' : 'userUnreadCount';
-  return Promise.all([
-    this.db.thread.count({ where: { [field]: userId, [unreadField]: { gt: 0 } } }),
-    this.db.thread.count({ where: { developerId: userId, devSection: 'NEW_REQUESTS' } }),
-  ]).then(([unread, pending]) => ({ unread, pending }));
-}
+    const field = role === 'DEVELOPER' ? 'developerId' : 'userId';
+    const unreadField = role === 'DEVELOPER' ? 'devUnreadCount' : 'userUnreadCount';
+    return Promise.all([
+      this.db.thread.count({ where: { [field]: userId, [unreadField]: { gt: 0 } } }),
+      this.db.thread.count({ where: { developerId: userId, devSection: 'NEW_REQUESTS' } }),
+    ]).then(([unread, pending]) => ({ unread, pending }));
+  }
+  async updateTime(id: string, userId: string, totalSeconds: number, chatSeconds: number) {
+    const thread = await this.db.thread.findUnique({ where: { id } });
+    if (!thread || thread.developerId !== userId) return { message: 'Not authorized' };
+    return this.db.thread.update({
+      where: { id },
+      data: {
+        devTotalTimeSeconds: { increment: totalSeconds },
+        devChatTimeSeconds: { increment: chatSeconds },
+      },
+    });
+  }
 }
 @Controller('threads') @UseGuards(JwtAuthGuard) export class ThreadsController {
   constructor(private readonly threads: ThreadsService) {}
   @Get(':id') getOne(@Param('id') id: string) { return this.threads.getThread(id); }
+  @Patch(':id/time') @Roles('DEVELOPER') updateTime(
+    @Param('id') id: string,
+    @CurrentUser() u: any,
+    @Body() body: { totalSeconds: number; chatSeconds: number }
+  ) { return this.threads.updateTime(id, u.id, body.totalSeconds, body.chatSeconds); }
 }
 @Controller('inbox') @UseGuards(JwtAuthGuard) export class InboxController {
   constructor(private readonly threads: ThreadsService) {}
@@ -116,9 +135,9 @@ export class ThreadsModule {}
 @Injectable() export class MessagesService {
   constructor(private readonly db: DatabaseService) {}
   send(threadId: string, senderId: string, dto: any) {
-  const textContent = (dto.blocks || []).filter((b: any) => b.type === 'text').map((b: any) => typeof b.content === 'string' ? b.content : '').join(' ');
-  return this.db.threadMessage.create({ data: { threadId, senderId, type: dto.type || 'PAID_MESSAGE', blocks: dto.blocks || [], channel: dto.channel || 'EXTERNAL', originalText: textContent || null } });
-}
+    const textContent = (dto.blocks || []).filter((b: any) => b.type === 'text').map((b: any) => typeof b.content === 'string' ? b.content : '').join(' ');
+    return this.db.threadMessage.create({ data: { threadId, senderId, type: dto.type || 'PAID_MESSAGE', blocks: dto.blocks || [], channel: dto.channel || 'EXTERNAL', originalText: textContent || null } });
+  }
   getMessages(threadId: string, limit = 30) {
     return this.db.threadMessage.findMany({ where: { threadId, visibleToUser: true }, orderBy: { createdAt: 'asc' }, take: limit });
   }
@@ -200,32 +219,28 @@ export class RetainersModule {}
 @Injectable() export class TranslationService {
   constructor(private readonly db: DatabaseService) {}
   async translate(messageId: string, targetLang: string) {
-  const msg = await this.db.threadMessage.findUnique({ where: { id: messageId } });
-  if (!msg?.originalText) return { message: 'No translatable text found' };
-  if (msg.translationStatus === 'GENERATED' && msg.translationTargetLang === targetLang) {
-    return { translatedText: msg.translatedText, cached: true };
-  }
-  try {
-    const deeplLangMap: Record<string, string> = {
-      en: 'EN', es: 'ES', fr: 'FR', pt: 'PT', zh: 'ZH', ja: 'JA', ar: 'AR', hi: 'HI'
-    };
-    const targetCode = deeplLangMap[targetLang] || targetLang.toUpperCase();
-    const response = await fetch('https://api-free.deepl.com/v2/translate', {
-      method: 'POST',
-      headers: { 'Authorization': `DeepL-Auth-Key ${process.env.DEEPL_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: [msg.originalText], target_lang: targetCode }),
-    });
-    const data = await response.json();
-    const translatedText = data.translations?.[0]?.text || msg.originalText;
-    await this.db.threadMessage.update({ where: { id: messageId }, data: { translatedText, translationStatus: 'GENERATED', translationTargetLang: targetLang } });
-    return { translatedText, cached: false };
-  } catch {
-    return { message: 'Translation failed' };
+    const msg = await this.db.threadMessage.findUnique({ where: { id: messageId } });
+    if (!msg?.originalText) return { message: 'No translatable text found' };
+    if (msg.translationStatus === 'GENERATED' && msg.translationTargetLang === targetLang) {
+      return { translatedText: msg.translatedText, cached: true };
+    }
+    try {
+      const deeplLangMap: Record<string, string> = { en: 'EN', es: 'ES', fr: 'FR', pt: 'PT', zh: 'ZH', ja: 'JA', ar: 'AR', hi: 'HI' };
+      const targetCode = deeplLangMap[targetLang] || targetLang.toUpperCase();
+      const response = await fetch('https://api-free.deepl.com/v2/translate', {
+        method: 'POST',
+        headers: { 'Authorization': `DeepL-Auth-Key ${process.env.DEEPL_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: [msg.originalText], target_lang: targetCode }),
+      });
+      const data = await response.json();
+      const translatedText = data.translations?.[0]?.text || msg.originalText;
+      await this.db.threadMessage.update({ where: { id: messageId }, data: { translatedText, translationStatus: 'GENERATED', translationTargetLang: targetLang } });
+      return { translatedText, cached: false };
+    } catch {
+      return { message: 'Translation failed' };
+    }
   }
 }
-
-  }
-
 @Controller('messages') @UseGuards(JwtAuthGuard) export class TranslationController {
   constructor(private readonly translation: TranslationService) {}
   @Post(':id/translate') translate(@Param('id') id: string, @Body() body: { targetLang: string }) { return this.translation.translate(id, body.targetLang); }
@@ -237,11 +252,9 @@ export class TranslationModule {}
 @Injectable() export class ModerationService {
   private readonly PASSWORD_PATTERN = /password[\s:=]+\S+/i;
   private readonly CONTACT_PATTERN = /\b[\w._%+-]+@[\w.-]+\.[a-zA-Z]{2,}\b|\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/;
-
   async check(text: string): Promise<{ flagged: boolean; reason?: string }> {
     if (this.PASSWORD_PATTERN.test(text)) return { flagged: true, reason: 'password_sharing' };
     if (this.CONTACT_PATTERN.test(text)) return { flagged: true, reason: 'off_platform_contact' };
-    // In production: call Google Perspective API for toxicity
     return { flagged: false };
   }
 }
