@@ -5,7 +5,7 @@ import { DatabaseService } from '@/database/database.service';
 
 @Injectable()
 export class HelperRequestsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private db: DatabaseService) {}
 
   async create(originalDevId: string, dto: {
     originalSessionId: string;
