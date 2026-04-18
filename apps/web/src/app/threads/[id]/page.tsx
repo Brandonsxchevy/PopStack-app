@@ -545,23 +545,23 @@ export default function ThreadPage() {
       )}
 
       {isActive && (
-        <div className="bg-green-50 border-b border-green-200 px-4 py-2">
-          <div className="max-w-2xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-sm text-green-700 font-medium">Session active</span>
-            </div>
-           {isDev && (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-    <AddHelperButton thread={thread} session={session} />
-    <button onClick={() => complete.mutate()} disabled={complete.isPending}
-      className="text-xs text-green-700 font-medium border border-green-300 px-3 py-1 rounded-lg hover:bg-green-100 disabled:opacity-50">
-      {complete.isPending ? '...' : 'Mark complete'}
-    </button>
-  </div>
-)}
+  <div className="bg-green-50 border-b border-green-200 px-4 py-2">
+    <div className="max-w-2xl mx-auto flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+        <span className="text-sm text-green-700 font-medium">Session active</span>
+      </div>
+      {isDev && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <AddHelperButton thread={thread} session={session} />
+          <button onClick={() => complete.mutate()} disabled={complete.isPending}
+            className="text-xs text-green-700 font-medium border border-green-300 px-3 py-1 rounded-lg hover:bg-green-100 disabled:opacity-50">
+            {complete.isPending ? '...' : 'Mark complete'}
+          </button>
         </div>
       )}
+    </div>
+  )}
 
       {isEnded && (
         <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
