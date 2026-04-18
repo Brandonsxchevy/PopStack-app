@@ -1,6 +1,5 @@
 'use client'
-import { Suspense } from 'react'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
@@ -20,8 +19,8 @@ function SignupForm() {
   const params = useSearchParams()
   const router = useRouter()
   const role = params.get('role') === 'developer' ? 'DEVELOPER' : 'USER'
+  const questionId = params.get('questionId') || ''
   const [loading, setLoading] = useState(false)
-
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
@@ -31,7 +30,8 @@ function SignupForm() {
     try {
       await api.post('/auth/register', { ...data, role })
       toast.success('Account created! Please log in.')
-      router.push('/auth/login')
+      const loginUrl = `/auth/login?role=${params.get('role') || 'user'}${questionId ? `&questionId=${questionId}` : ''}`
+      router.push(loginUrl)
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Registration failed')
     } finally {
@@ -69,13 +69,14 @@ function SignupForm() {
       </form>
       <p className="text-sm text-center text-gray-500 mt-4">
         Already have an account?{' '}
-        <Link href="/auth/login" className="text-brand font-medium">Log in</Link>
+        <Link href={`/auth/login${questionId ? `?questionId=${questionId}&role=${params.get('role') || 'user'}` : ''}`}
+          className="text-brand font-medium">Log in</Link>
       </p>
       <p className="text-sm text-center text-gray-400 mt-2">
         {role === 'DEVELOPER' ? (
-          <Link href="/auth/signup?role=user" className="hover:underline">I need help instead →</Link>
+          <Link href={`/auth/signup?role=user${questionId ? `&questionId=${questionId}` : ''}`} className="hover:underline">I need help instead →</Link>
         ) : (
-          <Link href="/auth/signup?role=developer" className="hover:underline">I fix problems →</Link>
+          <Link href={`/auth/signup?role=developer${questionId ? `&questionId=${questionId}` : ''}`} className="hover:underline">I fix problems →</Link>
         )}
       </p>
     </div>
