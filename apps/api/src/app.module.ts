@@ -49,6 +49,7 @@ import {
     RetainersModule,
     TranslationModule,
     ModerationModule,
+    PublicModule,
   ],
   controllers: [HealthController],
 })
