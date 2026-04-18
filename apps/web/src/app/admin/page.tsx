@@ -6,12 +6,13 @@ import { api } from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
 import { toast } from 'sonner'
 
-const { user, clearAuth } = useAuthStore()
+export const dynamic = 'force-dynamic'
 
 const TABS = ['Overview', 'Users', 'Developers', 'Questions', 'Sessions', 'Flags']
 
 export default function AdminPage() {
-  const { user } = useAuthStore()
+  export default function AdminPage() {
+  const { user, clearAuth } = useAuthStore()
   const router = useRouter()
   const qc = useQueryClient()
   const [tab, setTab] = useState('Overview')
