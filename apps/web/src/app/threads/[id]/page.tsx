@@ -597,7 +597,15 @@ export default function ThreadPage() {
       </div>
 
       {/* Input — only when session is active */}
-      {canChat && (
+      {!session && !isDev ? (
+    <div className="bg-white border-t border-gray-200 p-4 text-center max-w-2xl mx-auto w-full">
+    <p className="text-sm text-gray-500 mb-3">Payment required to start this session</p>
+    <button onClick={() => router.push(`/question/${thread.question?.id}`)}
+      className="btn-primary px-6 py-2 text-sm">
+      Go to question →
+      </button>
+      </div>
+      ) : canChat ? (
         <div className="bg-white border-t border-gray-200 p-3 max-w-2xl mx-auto w-full">
           {showCode && (
             <div className="mb-2">
@@ -659,7 +667,7 @@ export default function ThreadPage() {
           rateeName={thread.user?.name || 'your client'}
           onClose={() => setShowDevRatingModal(false)}
         />
-      )}
+     )}
     </div>
   )
 }
