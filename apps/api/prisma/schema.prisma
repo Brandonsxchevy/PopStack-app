@@ -266,6 +266,9 @@ model User {
   ratingsGiven      Rating[]         @relation("RatingsGiven")
   ratingsReceived   Rating[]         @relation("RatingsReceived")
   participants      Participant[]
+   helperRequestsAsOriginalDev  HelperRequest[] @relation("OriginalDev")
+  helperRequestsAsUser         HelperRequest[] @relation("HelperUser")
+  helperRequestsAsHelper       HelperRequest[] @relation("HelperDev")
   retainersAsUser   Retainer[]       @relation("RetainerUser")
   retainersAsDev    Retainer[]       @relation("RetainerDev")
   devLinks          DevLink[]
@@ -396,6 +399,8 @@ model Session {
   proposal               Proposal?     @relation(fields: [proposalId], references: [id])
   createdAt              DateTime      @default(now())
   updatedAt              DateTime      @updatedAt
+  helperRequestsAsOriginal  HelperRequest[] @relation("OriginalSession")
+  helperRequestAsHelper     HelperRequest?  @relation("HelperSession")
 
   ratings                Rating[]
   thread                 Thread?
