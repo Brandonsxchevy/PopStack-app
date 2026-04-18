@@ -500,6 +500,48 @@ model Task {
   taskPaymentSplits      TaskPaymentSplit[]
 }
 
+enum HelperRole {
+  FRONTEND
+  TESTER
+  DESIGNER
+  FULLSTACK
+  OTHER
+}
+
+enum HelperRequestStatus {
+  OPEN
+  RESPONDED
+  ACCEPTED
+  DECLINED
+  PAID
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+model HelperRequest {
+  id                String              @id @default(uuid())
+  originalSessionId String
+  originalSession   Session             @relation("OriginalSession", fields: [originalSessionId], references: [id])
+  originalDevId     String
+  originalDev       User                @relation("OriginalDev", fields: [originalDevId], references: [id])
+  userId            String
+  user              User                @relation("HelperUser", fields: [userId], references: [id])
+  questionId        String
+  question          Question            @relation(fields: [questionId], references: [id])
+  role              HelperRole
+  scopeDescription  String?
+  status            HelperRequestStatus @default(OPEN)
+  helperDevId       String?
+  helperDev         User?               @relation("HelperDev", fields: [helperDevId], references: [id])
+  helperSessionId   String?             @unique
+  helperSession     Session?            @relation("HelperSession", fields: [helperSessionId], references: [id])
+  tier              SessionTier?
+  stripePaymentIntentId String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+}
+
 model Participant {
   id               String            @id @default(uuid())
   contractId       String
