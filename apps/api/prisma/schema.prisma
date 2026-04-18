@@ -333,6 +333,7 @@ model Question {
   thread            Thread?
   accessRequests    AccessRequest[]
   slaEvents         SlaEvent[]
+  helperRequests  HelperRequest[]
 }
 
 model Fingerprint {
