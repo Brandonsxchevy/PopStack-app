@@ -6,6 +6,8 @@ import { api } from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
 import { toast } from 'sonner'
 
+const { user, clearAuth } = useAuthStore()
+
 const TABS = ['Overview', 'Users', 'Developers', 'Questions', 'Sessions', 'Flags']
 
 export default function AdminPage() {
@@ -104,7 +106,13 @@ export default function AdminPage() {
           <span className="text-brand font-bold text-lg">PopStack</span>
           <span className="text-xs bg-red-500 text-white px-2 py-0.5 rounded-full font-medium">ADMIN</span>
         </div>
-        <span className="text-sm text-gray-400">{user?.name}</span>
+       <div className="flex items-center gap-3">
+    <span className="text-sm text-gray-400">{user?.name}</span>
+    <button onClick={() => { clearAuth(); router.push('/') }}
+    className="text-xs text-gray-400 hover:text-red-400 border border-gray-600 px-3 py-1 rounded-lg transition-colors">
+    Log out
+  </button>
+  </div>
       </nav>
 
       <div className="max-w-6xl mx-auto px-3 py-4">
