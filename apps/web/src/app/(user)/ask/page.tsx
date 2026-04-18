@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { Suspense } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 
 const schema = z.object({
   title: z.string().min(5, 'Please describe the problem in at least 5 characters'),
@@ -47,6 +48,17 @@ function AskForm() {
     defaultValues: { budgetTier: 'TWENTY', urgency: 'MEDIUM' },
   })
 
+  useEffect(() => {
+  if (!questionId) return
+  fetch(`${process.env.NEXT_PUBLIC_API_URL}/public/questions`)
+    .then(r => r.json())
+    .then((questions: any[]) => {
+      const q = questions.find((q: any) => q.id === questionId)
+      if (q) setValue('title', q.title)
+    })
+    .catch(() => {})
+}, [questionId])
+  
   const budget = watch('budgetTier')
   const urgency = watch('urgency')
 
