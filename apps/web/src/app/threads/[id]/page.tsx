@@ -371,7 +371,7 @@ export default function ThreadPage() {
   const { data: helperRequest } = useQuery({
   queryKey: ['helper-request', thread?.sessionId],
   queryFn: () => api.get(`/helper-requests/session/${thread.sessionId}`).then(r => r.data),
-  enabled: !!thread?.sessionId && isActive,
+  enabled: !!thread?.sessionId,
   refetchInterval: 5000,
 })
 
@@ -604,6 +604,60 @@ const declineHelper = useMutation({
           </div>
         </div>
       )}
+
+      {/* Helper responded banner — shown to user */}
+{!isDev && helperRequest?.status === 'RESPONDED' && (
+  <div className="bg-purple-50 border-b border-purple-200 px-4 py-3">
+    <div className="max-w-2xl mx-auto">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-purple-800">🤝 A helper has responded</p>
+          <p className="text-xs text-purple-700 mt-0.5">
+            {helperRequest.helperDev?.name || 'A developer'} wants to help with{' '}
+            {helperRequest.role?.charAt(0) + helperRequest.role?.slice(1).toLowerCase()} work
+          </p>
+          {helperRequest.scopeDescription && (
+            <p className="text-xs text-purple-600 mt-1 italic">"{helperRequest.scopeDescription}"</p>
+          )}
+        </div>
+        <div className="flex gap-2 shrink-0">
+          <button onClick={() => declineHelper.mutate()} disabled={declineHelper.isPending}
+            className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 text-xs font-medium hover:bg-gray-50 disabled:opacity-50">
+            Decline
+          </button>
+          <button onClick={() => acceptHelper.mutate()} disabled={acceptHelper.isPending}
+            className="px-3 py-1.5 rounded-lg bg-purple-600 text-white text-xs font-medium hover:bg-purple-700 disabled:opacity-50">
+            {acceptHelper.isPending ? '...' : 'Accept'}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
+{/* Helper status tracker — shown to both */}
+{helperRequest && ['ACCEPTED', 'PAID', 'ACTIVE', 'COMPLETED'].includes(helperRequest.status) && (
+  <div className="bg-purple-50 border-b border-purple-200 px-4 py-2">
+    <div className="max-w-2xl mx-auto flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <span className="text-sm">🤝</span>
+        <span className="text-xs text-purple-700 font-medium">
+          Helper: {helperRequest.helperDev?.name || 'Developer'}
+        </span>
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+          helperRequest.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+          helperRequest.status === 'ACTIVE' ? 'bg-purple-100 text-purple-700' :
+          'bg-gray-100 text-gray-600'
+        }`}>
+          {helperRequest.status.charAt(0) + helperRequest.status.slice(1).toLowerCase()}
+        </span>
+      </div>
+      {helperRequest.status === 'ACCEPTED' && !isDev && (
+        <span className="text-xs text-purple-600">Awaiting payment</span>
+      )}
+    </div>
+  </div>
+)}
       
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 max-w-2xl mx-auto w-full">
