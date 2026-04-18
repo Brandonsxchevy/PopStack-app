@@ -41,6 +41,120 @@ async function googleTranslate(text: string, targetLang: string): Promise<{ tran
   }
 }
 
+function StarRating({ rating }: { rating: number | null }) {
+  if (!rating) return <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>No ratings yet</span>
+  return (
+    <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+      {[1,2,3,4,5].map(i => (
+        <span key={i} style={{ fontSize: 12, color: i <= Math.round(rating) ? '#BA7517' : '#D3D1C7' }}>★</span>
+      ))}
+      <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginLeft: 2 }}>{rating.toFixed(1)}</span>
+    </span>
+  )
+}
+
+function ContextPanel({ thread, session, isDev }: { thread: any; session: any; isDev: boolean }) {
+  const [summaryOpen, setSummaryOpen] = useState(false)
+  const [summary, setSummary] = useState<string | null>(null)
+  const [loadingSummary, setLoadingSummary] = useState(false)
+  const question = thread?.question
+  const fingerprint = question?.fingerprint
+  const otherPerson = isDev ? thread?.user : thread?.developer
+
+  const getSummary = async () => {
+    if (summary) { setSummaryOpen(true); return }
+    setLoadingSummary(true)
+    setSummaryOpen(true)
+    try {
+      const res = await api.post(`/questions/${question.id}/summary`)
+      setSummary(res.data.summary || 'Could not generate summary')
+    } catch {
+      toast.error('Failed to generate summary')
+    } finally {
+      setLoadingSummary(false)
+    }
+  }
+
+  return (
+    <div style={{ background: 'var(--color-background-primary)', borderBottom: '0.5px solid var(--color-border-tertiary)' }}>
+      {/* Person info */}
+      <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '0.5px solid var(--color-border-tertiary)' }}>
+        <div style={{
+          width: 40, height: 40, borderRadius: '50%',
+          background: isDev ? '#E6F1FB' : '#EEEDFE',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 16, fontWeight: 500,
+          color: isDev ? '#0C447C' : '#3C3489',
+          flexShrink: 0,
+        }}>
+          {otherPerson?.name?.[0]?.toUpperCase() || '?'}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-text-primary)' }}>
+            {otherPerson?.name || 'Unknown'}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+            <StarRating rating={otherPerson?.avgRating} />
+            {!isDev && otherPerson?.ratingCount > 0 && (
+              <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>
+                {otherPerson.ratingCount} session{otherPerson.ratingCount > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+        </div>
+        {session && (
+          <div style={{ fontSize: 11, background: '#FAEEDA', color: '#633806', padding: '3px 8px', borderRadius: 999, flexShrink: 0 }}>
+            {TIER_LABELS[session.tier]?.split(' — ')[0]}
+          </div>
+        )}
+      </div>
+
+      {/* Question info */}
+      <div style={{ padding: '12px 16px' }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 4 }}>
+          {question?.title}
+        </div>
+        {question?.url && (
+          <a href={question.url} target="_blank" rel="noopener noreferrer"
+            style={{ fontSize: 12, color: '#6C2FFF', textDecoration: 'none', display: 'block', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {question.url}
+          </a>
+        )}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+          {fingerprint?.platform && fingerprint.platform !== 'UNKNOWN' && (
+            <span style={{ fontSize: 11, background: '#EEEDFE', color: '#3C3489', padding: '2px 8px', borderRadius: 999 }}>
+              {fingerprint.platform}
+            </span>
+          )}
+          {session && (
+            <span style={{ fontSize: 11, background: '#FAEEDA', color: '#633806', padding: '2px 8px', borderRadius: 999 }}>
+              {TIER_LABELS[session.tier]}
+            </span>
+          )}
+        </div>
+
+        {/* AI Summary — dev only */}
+        {isDev && (
+          <button onClick={getSummary} disabled={loadingSummary}
+            style={{
+              width: '100%', padding: '6px 0', borderRadius: 8,
+              border: '0.5px solid #AFA9EC', background: summaryOpen ? '#EEEDFE' : 'none',
+              color: '#6C2FFF', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+              marginBottom: summary && summaryOpen ? 8 : 0,
+            }}>
+            {loadingSummary ? '✨ Generating...' : summaryOpen ? '✨ Hide summary' : '✨ Get AI summary'}
+          </button>
+        )}
+        {summaryOpen && summary && (
+          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.6, background: '#EEEDFE', borderRadius: 8, padding: '8px 10px' }}>
+            {summary}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function DevTimeTracker({ threadId, isActive }: { threadId: string; isActive: boolean }) {
   const [open, setOpen] = useState(false)
   const [totalSeconds, setTotalSeconds] = useState(0)
@@ -48,13 +162,12 @@ function DevTimeTracker({ threadId, isActive }: { threadId: string; isActive: bo
   const [saved, setSaved] = useState(false)
   const totalRef = useRef(0)
   const chatRef = useRef(0)
-  const chatActiveRef = useRef(true)
 
   useEffect(() => {
     if (!isActive) return
     const interval = setInterval(() => {
       totalRef.current += 1
-      if (chatActiveRef.current) chatRef.current += 1
+      chatRef.current += 1
       setTotalSeconds(totalRef.current)
       setChatSeconds(chatRef.current)
     }, 1000)
@@ -91,11 +204,7 @@ function DevTimeTracker({ threadId, isActive }: { threadId: string; isActive: bo
     return () => window.removeEventListener('beforeunload', handleUnload)
   }, [threadId])
 
-  const fmt = (s: number) => {
-    const m = Math.floor(s / 60)
-    const sec = s % 60
-    return `${m}:${sec.toString().padStart(2, '0')}`
-  }
+  const fmt = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`
 
   if (!isActive) return null
 
@@ -104,134 +213,38 @@ function DevTimeTracker({ threadId, isActive }: { threadId: string; isActive: bo
       position: 'fixed', bottom: 80, right: 16, zIndex: 50,
       background: 'var(--color-background-primary)',
       border: '0.5px solid var(--color-border-secondary)',
-      borderRadius: 12, overflow: 'hidden',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-      minWidth: 180,
+      borderRadius: 12, overflow: 'hidden', minWidth: 160,
     }}>
-      <button
-        onClick={() => setOpen(!open)}
-        style={{
-          width: '100%', padding: '8px 12px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: 'none', border: 'none', cursor: 'pointer',
-          fontSize: 12, fontWeight: 500, color: 'var(--color-text-primary)',
-        }}
-      >
+      <button onClick={() => setOpen(!open)} style={{
+        width: '100%', padding: '7px 12px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        background: 'none', border: 'none', cursor: 'pointer',
+        fontSize: 12, fontWeight: 500, color: 'var(--color-text-primary)',
+      }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#639922', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
           {fmt(totalSeconds)}
         </span>
-        <span style={{ color: 'var(--color-text-tertiary)' }}>{open ? '▼' : '▲'}</span>
+        <span style={{ color: 'var(--color-text-tertiary)', fontSize: 10 }}>{open ? '▼' : '▲'}</span>
       </button>
       {open && (
-        <div style={{ padding: '8px 12px 12px', borderTop: '0.5px solid var(--color-border-tertiary)' }}>
-          <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginBottom: 6 }}>This session</div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-            <span style={{ color: 'var(--color-text-secondary)' }}>Total time</span>
+        <div style={{ padding: '8px 12px 10px', borderTop: '0.5px solid var(--color-border-tertiary)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
+            <span style={{ color: 'var(--color-text-secondary)' }}>Total</span>
             <span style={{ fontWeight: 500 }}>{fmt(totalSeconds)}</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 10 }}>
             <span style={{ color: 'var(--color-text-secondary)' }}>In chat</span>
             <span style={{ fontWeight: 500 }}>{fmt(chatSeconds)}</span>
           </div>
-          <button
-            onClick={save}
-            style={{
-              width: '100%', padding: '5px 0', borderRadius: 8,
-              background: saved ? '#EAF3DE' : '#6C2FFF',
-              color: saved ? '#27500A' : 'white',
-              border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 500,
-            }}
-          >
-            {saved ? 'Saved ✓' : 'Save time log'}
+          <button onClick={save} style={{
+            width: '100%', padding: '5px 0', borderRadius: 8,
+            background: saved ? '#EAF3DE' : '#6C2FFF',
+            color: saved ? '#27500A' : 'white',
+            border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 500,
+          }}>
+            {saved ? 'Saved ✓' : 'Save log'}
           </button>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function QuestionPanel({ thread, session }: { thread: any; session: any }) {
-  const [open, setOpen] = useState(false)
-  const [summary, setSummary] = useState<string | null>(null)
-  const [loadingSummary, setLoadingSummary] = useState(false)
-
-  const question = thread?.question
-  const fingerprint = question?.fingerprint
-
-  const getSummary = async () => {
-    if (summary) return
-    setLoadingSummary(true)
-    try {
-      const res = await api.post(`/questions/${question.id}/summary`)
-      setSummary(res.data.summary || 'Could not generate summary')
-    } catch {
-      toast.error('Failed to generate summary')
-    } finally {
-      setLoadingSummary(false)
-    }
-  }
-
- if (!question) return null
-
-  return (
-    <div className="border-b border-gray-200 bg-white">
-      <button onClick={() => setOpen(!open)}
-        className="w-full px-4 py-2.5 flex items-center justify-between text-sm text-gray-600 hover:bg-gray-50 transition-colors">
-        <div className="flex items-center gap-2">
-          <span>📋</span>
-          <span className="font-medium">Question details</span>
-          {fingerprint?.platform && fingerprint.platform !== 'UNKNOWN' && (
-            <span className="text-xs bg-brand-light text-brand px-2 py-0.5 rounded-full">{fingerprint.platform}</span>
-          )}
-        </div>
-        <span className="text-gray-400">{open ? '▲' : '▼'}</span>
-      </button>
-      {open && (
-        <div className="px-4 pb-4 max-w-2xl mx-auto">
-          <div className="space-y-2 mb-3">
-            <div>
-              <p className="text-xs font-medium text-gray-500 mb-0.5">Problem</p>
-              <p className="text-sm text-gray-800">{question.title}</p>
-              {question.description && <p className="text-xs text-gray-500 mt-1">{question.description}</p>}
-            </div>
-            {question.url && (
-              <div>
-                <p className="text-xs font-medium text-gray-500 mb-0.5">Website</p>
-                <a href={question.url} target="_blank" rel="noopener noreferrer" className="text-xs text-brand underline">{question.url}</a>
-              </div>
-            )}
-            {fingerprint && (
-              <div className="flex flex-wrap gap-2">
-                {fingerprint.platform && fingerprint.platform !== 'UNKNOWN' && (
-                  <div className="text-xs bg-gray-100 px-2 py-1 rounded-lg">
-                    <span className="text-gray-500">Platform:</span> <span className="text-gray-800 font-medium">{fingerprint.platform}</span>
-                  </div>
-                )}
-                {fingerprint.signals?.filter((s: any) => s.signal?.startsWith('dns_provider:')).map((s: any) => (
-                  <div key={s.signal} className="text-xs bg-gray-100 px-2 py-1 rounded-lg">
-                    <span className="text-gray-500">DNS:</span> <span className="text-gray-800 font-medium">{s.signal.replace('dns_provider: ', '')}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {session && (
-              <div className="text-xs bg-amber-50 text-amber-700 px-2 py-1 rounded-lg inline-block">{TIER_LABELS[session.tier]}</div>
-            )}
-          </div>
-          <div className="border-t border-gray-100 pt-3">
-            {summary ? (
-              <div className="bg-brand-light rounded-xl p-3">
-                <span className="text-xs font-semibold text-brand block mb-2">✨ AI Summary</span>
-                <p className="text-xs text-gray-700 leading-relaxed">{summary}</p>
-              </div>
-            ) : (
-              <button onClick={getSummary} disabled={loadingSummary}
-                className="w-full py-2 rounded-xl border border-brand/30 text-brand text-xs font-medium hover:bg-brand-light transition-colors disabled:opacity-50">
-                {loadingSummary ? '✨ Generating summary...' : '✨ Get AI summary'}
-              </button>
-            )}
-          </div>
         </div>
       )}
     </div>
@@ -256,6 +269,7 @@ export default function ThreadPage() {
   const [translating, setTranslating] = useState(false)
   const [showRatingModal, setShowRatingModal] = useState(false)
   const [showDevRatingModal, setShowDevRatingModal] = useState(false)
+
   const { data: thread, isLoading } = useQuery({
     queryKey: ['thread', id],
     queryFn: () => api.get(`/threads/${id}`).then(r => r.data),
@@ -296,42 +310,18 @@ export default function ThreadPage() {
     setTranslating(true)
     const newTranslations: Record<string, string> = {}
     let detectedLang: string | null = null
-
     for (const msg of messages) {
       if (msg.type === 'SYSTEM_EVENT') continue
       const isFromOther = msg.senderId !== user?.id
       const msgText = getMessageText(msg)
-      if (!msgText) continue
-      if (isFromOther) {
-        const result = await googleTranslate(msgText, devLang)
-        newTranslations[msg.id] = result.translated
-        if (!detectedLang) detectedLang = result.detectedLang
-      }
+      if (!msgText || !isFromOther) continue
+      const result = await googleTranslate(msgText, devLang)
+      newTranslations[msg.id] = result.translated
+      if (!detectedLang) detectedLang = result.detectedLang
     }
-
     if (detectedLang) setDetectedUserLang(detectedLang)
     setTranslations(newTranslations)
     setTranslating(false)
-  }
-
-  const enableTranslation = async (lang: string) => {
-    setDevLang(lang)
-    setTranslateMode(true)
-    setShowLangPicker(false)
-  }
-
-  const disableTranslation = () => {
-    setTranslateMode(false)
-    setTranslations({})
-    setDetectedUserLang(null)
-  }
-
-  const handleSend = async () => {
-    const blocks: any[] = []
-    if (text.trim()) blocks.push({ type: 'text', content: text.trim() })
-    if (showCode && code.trim()) blocks.push({ type: 'code', content: code.trim() })
-    if (!blocks.length) return
-    send.mutate()
   }
 
   const accept = useMutation({
@@ -361,20 +351,20 @@ export default function ThreadPage() {
       toast.success('Session marked complete — 24h review window started')
       qc.invalidateQueries({ queryKey: ['session', thread?.sessionId] })
       setShowDevRatingModal(true)
-},
+    },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to complete'),
   })
 
-const approve = useMutation({
-  mutationFn: () => api.post(`/sessions/${thread.sessionId}/approve`),
-  onSuccess: () => {
-    toast.success('Work approved — payment released! 🎉')
-    qc.invalidateQueries({ queryKey: ['session', thread?.sessionId] })
-    qc.invalidateQueries({ queryKey: ['thread', id] })  // ← add this
-    setShowRatingModal(true)
-  },
-  onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to approve'),
-})
+  const approve = useMutation({
+    mutationFn: () => api.post(`/sessions/${thread.sessionId}/approve`),
+    onSuccess: () => {
+      toast.success('Work approved — payment released! 🎉')
+      qc.invalidateQueries({ queryKey: ['session', thread?.sessionId] })
+      qc.invalidateQueries({ queryKey: ['thread', id] })
+      setShowRatingModal(true)
+    },
+    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to approve'),
+  })
 
   const send = useMutation({
     mutationFn: () => {
@@ -396,6 +386,8 @@ const approve = useMutation({
     },
   })
 
+  const handleSend = () => send.mutate()
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -415,94 +407,75 @@ const approve = useMutation({
     </div>
   )
 
-  const otherPerson = user?.role === 'DEVELOPER' ? thread.user : thread.developer
-  const questionTitle = thread.question?.title || 'Conversation'
   const isDev = user?.role === 'DEVELOPER'
   const isPendingAccept = session?.status === 'PENDING_ACCEPT'
   const isActive = session?.status === 'ACTIVE'
   const isEnded = session?.status === 'ENDED'
+  const canChat = isActive || isEnded
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
+      <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
+
       {/* Nav */}
       <nav className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3">
-        <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-600 transition-colors">←</button>
+        <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-600">←</button>
         <div className="flex-1 min-w-0">
-          <div className="font-medium text-gray-900 truncate">{questionTitle}</div>
-          <div className="text-xs text-gray-500">with {otherPerson?.name || '...'}</div>
-        </div>
-
-        {/* Translate toggle — dev only */}
-        {isDev && (
-          <div className="relative">
-            {translateMode ? (
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-brand font-medium">
-                  🌐 {LANGUAGES.find(l => l.code === devLang)?.label}
-                  {detectedUserLang && (
-                    <span className="text-gray-400 ml-1">↔ {LANGUAGES.find(l => l.code === detectedUserLang)?.label || detectedUserLang}</span>
-                  )}
-                </span>
-                <button onClick={disableTranslation}
-                  className="text-xs text-red-400 hover:text-red-600 border border-red-200 px-2 py-0.5 rounded-lg">
-                  Off
-                </button>
-              </div>
-            ) : (
-              <button onClick={() => setShowLangPicker(!showLangPicker)}
-                className="text-xs text-gray-500 hover:text-brand border border-gray-200 px-2 py-1 rounded-lg transition-colors">
-                🌐 Translate
-              </button>
-            )}
-            {showLangPicker && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowLangPicker(false)} />
-                <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-xl shadow-xl z-50 py-1 min-w-[140px]">
-                  <p className="text-xs text-gray-400 px-3 py-1.5 border-b border-gray-100">Translate chat to</p>
-                  {LANGUAGES.map(lang => (
-                    <button key={lang.code} onClick={() => enableTranslation(lang.code)}
-                      className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-brand-light hover:text-brand transition-colors">
-                      {lang.label}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
+          <div className="font-medium text-gray-900 truncate text-sm">{thread.question?.title || 'Conversation'}</div>
+          <div className="text-xs text-gray-400">
+            {isActive ? '🟢 Active' : isEnded ? '✅ Awaiting approval' : isPendingAccept ? '⏳ Pending' : 'Thread'}
           </div>
-        )}
-
-        <Link href={isDev ? '/inbox' : '/dashboard'} className="text-brand font-bold text-lg shrink-0">PS</Link>
-      </nav>
-
-      {/* Question context panel — dev only */}
-      {isDev && <QuestionPanel thread={thread} session={session} />}
-
-      {/* Translation status bar */}
-      {isDev && translateMode && (
-        <div className="bg-blue-50 border-b border-blue-200 px-4 py-1.5 text-center">
-          <span className="text-xs text-blue-700">
-            {translating
-              ? '🌐 Translating messages...'
-              : `🌐 Showing translations in ${LANGUAGES.find(l => l.code === devLang)?.label}${detectedUserLang ? ` · User writes in ${LANGUAGES.find(l => l.code === detectedUserLang)?.label || detectedUserLang}` : ''}`}
-          </span>
         </div>
-      )}
-
-      {/* Session banners */}
-      {isDev && isPendingAccept && session && (
-        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3">
-          <div className="max-w-2xl mx-auto flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-amber-800 mb-0.5">New session request</p>
-              <p className="text-xs text-amber-700">{TIER_LABELS[session.tier]} · from {thread.user?.name}</p>
-              {session.question?.url && (
-                <a href={session.question.url} target="_blank" rel="noopener noreferrer"
-                  className="text-xs text-brand underline mt-1 block truncate">{session.question.url}</a>
+        <div className="flex items-center gap-2 shrink-0">
+          {isDev && (
+            <div className="relative">
+              {translateMode ? (
+                <button onClick={() => { setTranslateMode(false); setTranslations({}); setDetectedUserLang(null) }}
+                  className="text-xs text-red-400 border border-red-200 px-2 py-1 rounded-lg">
+                  🌐 Off
+                </button>
+              ) : (
+                <button onClick={() => setShowLangPicker(!showLangPicker)}
+                  className="text-xs text-gray-500 border border-gray-200 px-2 py-1 rounded-lg">
+                  🌐
+                </button>
+              )}
+              {showLangPicker && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowLangPicker(false)} />
+                  <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-xl shadow-xl z-50 py-1 min-w-[140px]">
+                    <p className="text-xs text-gray-400 px-3 py-1.5 border-b border-gray-100">Translate to</p>
+                    {LANGUAGES.map(lang => (
+                      <button key={lang.code} onClick={() => { setDevLang(lang.code); setTranslateMode(true); setShowLangPicker(false) }}
+                        className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-brand-light hover:text-brand">
+                        {lang.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
-            <div className="flex gap-2 shrink-0">
+          )}
+          <Link href={isDev ? '/inbox' : '/dashboard'} className="text-brand font-bold text-lg">PS</Link>
+        </div>
+      </nav>
+
+      {/* Context panel */}
+      <ContextPanel thread={thread} session={session} isDev={isDev} />
+
+      {/* Session action banners */}
+      {isDev && isPendingAccept && session && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3">
+          <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-amber-800">New session request</p>
+              <p className="text-xs text-amber-700">{TIER_LABELS[session.tier]} · from {thread.user?.name}</p>
+            </div>
+            <div className="flex gap-2">
               <button onClick={() => decline.mutate()} disabled={decline.isPending}
-                className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 text-sm font-medium hover:bg-gray-50 disabled:opacity-50">Decline</button>
+                className="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 text-sm font-medium hover:bg-gray-50 disabled:opacity-50">
+                Decline
+              </button>
               <button onClick={() => accept.mutate()} disabled={accept.isPending}
                 className="px-3 py-1.5 rounded-lg bg-brand text-white text-sm font-medium hover:bg-brand-dark disabled:opacity-50">
                 {accept.isPending ? 'Accepting...' : 'Accept ✓'}
@@ -518,11 +491,10 @@ const approve = useMutation({
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
               <span className="text-sm text-green-700 font-medium">Session active</span>
-              <span className="text-xs text-green-600">· {TIER_LABELS[session?.tier]}</span>
             </div>
             {isDev && (
               <button onClick={() => complete.mutate()} disabled={complete.isPending}
-                className="text-xs text-green-700 font-medium border border-green-300 px-2 py-1 rounded-lg hover:bg-green-100 disabled:opacity-50">
+                className="text-xs text-green-700 font-medium border border-green-300 px-3 py-1 rounded-lg hover:bg-green-100 disabled:opacity-50">
                 {complete.isPending ? '...' : 'Mark complete'}
               </button>
             )}
@@ -534,36 +506,46 @@ const approve = useMutation({
         <div className="bg-gray-50 border-b border-gray-200 px-4 py-3">
           <div className="max-w-2xl mx-auto flex items-center justify-between">
             <span className="text-sm text-gray-600">
-              ✅ Session complete — {isDev ? 'waiting for client approval' : 'approve the work to release payment'}
+              ✅ {isDev ? 'Waiting for client approval' : 'Approve the work to release payment'}
             </span>
             {!isDev && (
-            <button onClick={() => approve.mutate()} disabled={approve.isPending}
-            className="text-sm bg-brand text-white font-medium px-4 py-2 rounded-lg hover:bg-brand-dark disabled:opacity-50 shrink-0 animate-bounce shadow-lg shadow-brand/40">
-            {approve.isPending ? '...' : 'Approve & pay ✓'}
-          </button>
-          )}
+              <button onClick={() => approve.mutate()} disabled={approve.isPending}
+                className="text-sm bg-brand text-white font-medium px-4 py-2 rounded-lg hover:bg-brand-dark disabled:opacity-50 animate-pop shadow-lg shadow-brand/40">
+                {approve.isPending ? '...' : 'Approve & pay ✓'}
+              </button>
+            )}
           </div>
         </div>
       )}
 
+      {/* Translation bar */}
+      {isDev && translateMode && (
+        <div className="bg-blue-50 border-b border-blue-200 px-4 py-1.5 text-center">
+          <span className="text-xs text-blue-700">
+            {translating ? '🌐 Translating...' : `🌐 ${LANGUAGES.find(l => l.code === devLang)?.label}${detectedUserLang ? ` ↔ ${LANGUAGES.find(l => l.code === detectedUserLang)?.label || detectedUserLang}` : ''}`}
+          </span>
+        </div>
+      )}
+
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 pb-4 max-w-2xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 max-w-2xl mx-auto w-full">
         {messagesLoading ? (
-          <div className="text-center text-gray-400 py-8">Loading messages...</div>
+          <div className="text-center text-gray-400 py-8 text-sm">Loading messages...</div>
         ) : messages.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-4xl mb-3">💬</div>
+          <div className="text-center py-8">
+            <div className="text-3xl mb-2">💬</div>
             <p className="text-gray-500 text-sm">No messages yet.</p>
             <p className="text-gray-400 text-xs mt-1">
               {isDev
                 ? isPendingAccept ? 'Accept the session to start chatting.' : 'Start the conversation with your client.'
-                : 'Your developer will reach out shortly.'}
+                : isActive ? 'Your developer is working on it.' : 'Your developer will reach out shortly.'}
             </p>
           </div>
         ) : (
           messages.map((msg: any) => {
             const isMe = msg.senderId === user?.id
             const isSystem = msg.type === 'SYSTEM_EVENT'
+            const otherName = isDev ? thread.user?.name : thread.developer?.name
 
             if (isSystem) return (
               <div key={msg.id} className="text-center">
@@ -578,11 +560,9 @@ const approve = useMutation({
 
             return (
               <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[75%] flex flex-col gap-1 ${isMe ? 'items-end' : 'items-start'}`}>
-                  {!isMe && <span className="text-xs text-gray-400 px-1">{otherPerson?.name}</span>}
-                  <div className={`rounded-2xl px-4 py-2.5 ${
-                    isMe ? 'bg-brand text-white rounded-tr-sm' : 'bg-white border border-gray-200 text-gray-900 rounded-tl-sm'
-                  }`}>
+                <div className={`max-w-[78%] flex flex-col gap-1 ${isMe ? 'items-end' : 'items-start'}`}>
+                  {!isMe && <span className="text-xs text-gray-400 px-1">{otherName}</span>}
+                  <div className={`rounded-2xl px-4 py-2.5 ${isMe ? 'bg-brand text-white rounded-tr-sm' : 'bg-white border border-gray-200 text-gray-900 rounded-tl-sm'}`}>
                     {Array.isArray(msg.blocks) && msg.blocks.map((block: any, i: number) => (
                       <div key={i}>
                         {block.type === 'text' && (
@@ -616,78 +596,70 @@ const approve = useMutation({
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
-      <div className="bg-white border-t border-gray-200 p-3 max-w-2xl mx-auto w-full">
-        {isDev && isPendingAccept ? (
-          <p className="text-sm text-gray-400 text-center py-2">Accept the session to start messaging</p>
-        ) : (
-          <>
-            {showCode && (
-              <div className="mb-2">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-gray-500">Code snippet</span>
-                  <button onClick={() => { setShowCode(false); setCode('') }} className="text-xs text-red-400 hover:text-red-600">Remove</button>
-                </div>
-                <textarea value={code} onChange={e => setCode(e.target.value)}
-                  className="w-full bg-gray-900 text-green-400 text-xs font-mono p-2 rounded-lg border-0 focus:outline-none focus:ring-1 focus:ring-brand min-h-[80px] resize-none"
-                  placeholder="// paste code here" />
+      {/* Input — only when session is active */}
+      {canChat && (
+        <div className="bg-white border-t border-gray-200 p-3 max-w-2xl mx-auto w-full">
+          {showCode && (
+            <div className="mb-2">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs text-gray-500">Code snippet</span>
+                <button onClick={() => { setShowCode(false); setCode('') }} className="text-xs text-red-400 hover:text-red-600">Remove</button>
               </div>
-            )}
-            <div className="flex items-end gap-2">
-              <div className="flex-1">
-                <textarea value={text} onChange={e => setText(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  className="w-full border border-gray-300 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand resize-none max-h-32"
-                  placeholder={isDev && translateMode && detectedUserLang ? `Type in ${LANGUAGES.find(l => l.code === devLang)?.label} — sends in both languages` : 'Type a message... (Enter to send)'}
-                  rows={1}
-                  onInput={e => {
-                    const t = e.target as HTMLTextAreaElement
-                    t.style.height = 'auto'
-                    t.style.height = Math.min(t.scrollHeight, 128) + 'px'
-                  }}
-                />
-              </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <button onClick={() => setShowCode(!showCode)}
-                  className={`p-2 rounded-xl text-sm transition-colors ${showCode ? 'bg-brand text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
-                  title="Add code snippet">
-                  {'</>'}
-                </button>
-                <button onClick={handleSend}
-                  disabled={send.isPending || (!text.trim() && !code.trim())}
-                  className="bg-brand text-white p-2 rounded-xl hover:bg-brand-dark transition-colors disabled:opacity-50">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                    <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
-                  </svg>
-                </button>
-              </div>
+              <textarea value={code} onChange={e => setCode(e.target.value)}
+                className="w-full bg-gray-900 text-green-400 text-xs font-mono p-2 rounded-lg border-0 focus:outline-none focus:ring-1 focus:ring-brand min-h-[80px] resize-none"
+                placeholder="// paste code here" />
             </div>
-            <p className="text-xs text-gray-400 mt-1.5 px-1">Enter to send · Shift+Enter for new line</p>
-          </>
-        )}
-      </div>
-     {showRatingModal && session && (
-  <RatingModal
-    sessionId={thread.sessionId}
-    rateeType="developer"
-    rateeName={thread.developer?.name || 'your developer'}
-    onClose={() => {
-      setShowRatingModal(false)
-      router.push('/dashboard')
-      }}
-    />
-  )}
-      {showDevRatingModal && session && (
-      <RatingModal
-    sessionId={thread.sessionId}
-    rateeType="user"
-    rateeName={thread.user?.name || 'your client'}
-    onClose={() => setShowDevRatingModal(false)}
-  />
-)}
+          )}
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <textarea value={text} onChange={e => setText(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="w-full border border-gray-300 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand resize-none max-h-32"
+                placeholder="Type a message... (Enter to send)"
+                rows={1}
+                onInput={e => {
+                  const t = e.target as HTMLTextAreaElement
+                  t.style.height = 'auto'
+                  t.style.height = Math.min(t.scrollHeight, 128) + 'px'
+                }}
+              />
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button onClick={() => setShowCode(!showCode)}
+                className={`p-2 rounded-xl text-sm transition-colors ${showCode ? 'bg-brand text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                {'</>'}
+              </button>
+              <button onClick={handleSend}
+                disabled={send.isPending || (!text.trim() && !code.trim())}
+                className="bg-brand text-white p-2 rounded-xl hover:bg-brand-dark transition-colors disabled:opacity-50">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                  <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 mt-1.5 px-1">Enter to send · Shift+Enter for new line</p>
+        </div>
+      )}
 
-  <DevTimeTracker threadId={id as string} isActive={isActive && isDev} />
-      
+      <DevTimeTracker threadId={id as string} isActive={isActive && isDev} />
+
+      {showRatingModal && session && (
+        <RatingModal
+          sessionId={thread.sessionId}
+          rateeType="developer"
+          rateeName={thread.developer?.name || 'your developer'}
+          onClose={() => { setShowRatingModal(false); router.push('/dashboard') }}
+        />
+      )}
+      {showDevRatingModal && session && (
+        <RatingModal
+          sessionId={thread.sessionId}
+          rateeType="user"
+          rateeName={thread.user?.name || 'your client'}
+          onClose={() => setShowDevRatingModal(false)}
+        />
+      )}
     </div>
   )
 }
