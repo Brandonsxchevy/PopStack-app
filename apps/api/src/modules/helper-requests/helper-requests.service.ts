@@ -1,7 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { SessionTier } from '@prisma/client';
 import { DatabaseService } from '@/database/database.service';
+import { SessionTier } from '@prisma/client';
 
 @Injectable()
 export class HelperRequestsService {
