@@ -11,7 +11,6 @@ export const dynamic = 'force-dynamic'
 const TABS = ['Overview', 'Users', 'Developers', 'Questions', 'Sessions', 'Flags']
 
 export default function AdminPage() {
-  export default function AdminPage() {
   const { user, clearAuth } = useAuthStore()
   const router = useRouter()
   const qc = useQueryClient()
