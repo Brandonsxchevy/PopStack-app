@@ -234,6 +234,104 @@ function DevTimeTracker({ threadId, isActive }: { threadId: string; isActive: bo
   )
 }
 
+function AddHelperButton({ thread, session }: { thread: any; session: any }) {
+  const [open, setOpen] = useState(false)
+  const [role, setRole] = useState('FULLSTACK')
+  const [scope, setScope] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  const submit = async () => {
+    if (!scope.trim()) return toast.error('Please describe the scope')
+    setSubmitting(true)
+    try {
+      await api.post('/helper-requests', {
+        originalSessionId: session.id,
+        questionId: thread.question.id,
+        role,
+        scopeDescription: scope,
+        tier: session.tier,
+      })
+      toast.success('Helper request posted to feed!')
+      setOpen(false)
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to post helper request')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (!open) return (
+    <button onClick={() => setOpen(true)} style={{
+      fontSize: 12, color: '#6C2FFF', border: '0.5px solid #AFA9EC',
+      borderRadius: 8, padding: '5px 12px', background: 'none', cursor: 'pointer', fontWeight: 500,
+    }}>
+      + Add helper
+    </button>
+  )
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100,
+      display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+    }}>
+      <div style={{
+        background: 'var(--color-background-primary)', borderRadius: '16px 16px 0 0',
+        padding: 20, width: '100%', maxWidth: 480,
+      }}>
+        <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Request a helper</div>
+        <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 16 }}>
+          Post to the dev feed — another dev can join and help you finish.
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Role needed</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {['FULLSTACK', 'FRONTEND', 'TESTER', 'DESIGNER', 'OTHER'].map(r => (
+              <button key={r} onClick={() => setRole(r)} style={{
+                fontSize: 11, padding: '4px 10px', borderRadius: 999,
+                border: '0.5px solid',
+                borderColor: role === r ? '#6C2FFF' : 'var(--color-border-secondary)',
+                background: role === r ? '#EEEDFE' : 'none',
+                color: role === r ? '#6C2FFF' : 'var(--color-text-secondary)',
+                cursor: 'pointer',
+              }}>
+                {r.charAt(0) + r.slice(1).toLowerCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Scope description</div>
+          <textarea value={scope} onChange={e => setScope(e.target.value)}
+            placeholder="e.g. Need someone to handle the CSS animations while I work on the backend..."
+            style={{
+              width: '100%', border: '0.5px solid var(--color-border-secondary)',
+              borderRadius: 8, padding: '8px 10px', fontSize: 12,
+              resize: 'none', minHeight: 72, boxSizing: 'border-box',
+              background: 'var(--color-background-secondary)',
+            }} />
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => setOpen(false)} style={{
+            flex: 1, padding: '10px 0', borderRadius: 10,
+            border: '0.5px solid var(--color-border-secondary)',
+            background: 'none', fontSize: 13, cursor: 'pointer',
+          }}>
+            Cancel
+          </button>
+          <button onClick={submit} disabled={submitting} style={{
+            flex: 2, padding: '10px 0', borderRadius: 10,
+            background: '#6C2FFF', color: 'white',
+            border: 'none', fontSize: 13, fontWeight: 500, cursor: 'pointer',
+            opacity: submitting ? 0.6 : 1,
+          }}>
+            {submitting ? 'Posting...' : 'Post to feed'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ThreadPage() {
   const { id } = useParams()
   const router = useRouter()
@@ -453,13 +551,15 @@ export default function ThreadPage() {
               <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
               <span className="text-sm text-green-700 font-medium">Session active</span>
             </div>
-            {isDev && (
-              <button onClick={() => complete.mutate()} disabled={complete.isPending}
-                className="text-xs text-green-700 font-medium border border-green-300 px-3 py-1 rounded-lg hover:bg-green-100 disabled:opacity-50">
-                {complete.isPending ? '...' : 'Mark complete'}
-              </button>
-            )}
-          </div>
+           {isDev && (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <AddHelperButton thread={thread} session={session} />
+    <button onClick={() => complete.mutate()} disabled={complete.isPending}
+      className="text-xs text-green-700 font-medium border border-green-300 px-3 py-1 rounded-lg hover:bg-green-100 disabled:opacity-50">
+      {complete.isPending ? '...' : 'Mark complete'}
+    </button>
+  </div>
+)}
         </div>
       )}
 
