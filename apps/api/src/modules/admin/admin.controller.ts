@@ -38,6 +38,16 @@ export class AdminController {
     return this.admin.getQuestions(status, search);
   }
 
+  @Patch('questions/:id/trash')
+  trashQuestion(@Param('id') id: string) {
+    return this.admin.trashQuestion(id);
+  }
+
+  @Patch('questions/:id/refund')
+  refundQuestion(@Param('id') id: string) {
+    return this.admin.refundQuestion(id);
+  }
+
   @Get('sessions')
   getSessions(@Query('status') status?: string) {
     return this.admin.getSessions(status);
