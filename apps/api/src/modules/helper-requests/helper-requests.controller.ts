@@ -1,27 +1,33 @@
-import { Controller, Post, Get, Patch, Param, Body, Req, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Param, Body, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard, RolesGuard } from '@/common/guards/auth.guard';
+import { Roles, CurrentUser } from '@/common/decorators';
 import { HelperRequestsService } from './helper-requests.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SessionTier } from '@prisma/client';
 
+@ApiTags('HelperRequests')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('helper-requests')
-@UseGuards(JwtAuthGuard)
 export class HelperRequestsController {
   constructor(private readonly helperRequestsService: HelperRequestsService) {}
 
   @Post()
-  create(@Req() req, @Body() body: {
+  @Roles('DEVELOPER')
+  create(@CurrentUser() user: any, @Body() body: {
     originalSessionId: string;
     questionId: string;
     role: string;
     scopeDescription?: string;
     tier: SessionTier;
   }) {
-    return this.helperRequestsService.create(req.user.id, body);
+    return this.helperRequestsService.create(user.id, body);
   }
 
   @Get('feed')
-  getFeed(@Req() req) {
-    return this.helperRequestsService.getFeed(req.user.id);
+  @Roles('DEVELOPER')
+  getFeed(@CurrentUser() user: any) {
+    return this.helperRequestsService.getFeed(user.id);
   }
 
   @Get('session/:sessionId')
@@ -30,27 +36,32 @@ export class HelperRequestsController {
   }
 
   @Get('my-jobs')
-  getMyHelperJobs(@Req() req) {
-    return this.helperRequestsService.getMyHelperJobs(req.user.id);
+  @Roles('DEVELOPER')
+  getMyHelperJobs(@CurrentUser() user: any) {
+    return this.helperRequestsService.getMyHelperJobs(user.id);
   }
 
   @Post(':id/respond')
-  respond(@Param('id') id: string, @Req() req) {
-    return this.helperRequestsService.respond(id, req.user.id);
+  @Roles('DEVELOPER')
+  respond(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.helperRequestsService.respond(id, user.id);
   }
 
   @Post(':id/accept')
-  accept(@Param('id') id: string, @Req() req) {
-    return this.helperRequestsService.accept(id, req.user.id);
+  @Roles('USER')
+  accept(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.helperRequestsService.accept(id, user.id);
   }
 
   @Post(':id/decline')
-  decline(@Param('id') id: string, @Req() req) {
-    return this.helperRequestsService.decline(id, req.user.id);
+  @Roles('USER')
+  decline(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.helperRequestsService.decline(id, user.id);
   }
 
   @Patch(':id/complete')
-  complete(@Param('id') id: string, @Req() req) {
-    return this.helperRequestsService.complete(id, req.user.id);
+  @Roles('DEVELOPER')
+  complete(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.helperRequestsService.complete(id, user.id);
   }
 }
