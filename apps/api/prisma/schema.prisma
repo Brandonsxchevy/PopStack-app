@@ -248,6 +248,7 @@ model User {
   stripeCustomerId  String?
   preferredLanguage String           @default("en")
   autoTranslate     Boolean          @default(false)
+avatarUrl           String?
   avgRating         Float?
   ratingCount       Int              @default(0)
   flagCount         Int              @default(0)

@@ -26,6 +26,7 @@ async getMyQuestions(userId: string) {
   });
 }
 
+  
   async create(userId: string, dto: CreateQuestionDto) {
     if (!dto.url && (!dto.screenshotKeys || dto.screenshotKeys.length === 0)) {
       throw new BadRequestException(
@@ -97,30 +98,51 @@ async getMyQuestions(userId: string) {
     return this.db.question.delete({ where: { id } });
   }
 
-  async getFeed(developerId: string, filters: any) {
-    const where: any = { status: 'OPEN', preSelectedDevId: null };
+async getFeed(developerId: string, filters: any) {
+  const where: any = { status: 'OPEN', preSelectedDevId: null };
+  if (filters.minClarity) where.clarityScore = { gte: parseFloat(filters.minClarity) };
+  if (filters.budgetTier) where.budgetTier = filters.budgetTier;
 
-    if (filters.minClarity) where.clarityScore = { gte: parseFloat(filters.minClarity) };
-    if (filters.budgetTier) where.budgetTier = filters.budgetTier;
+  const swiped = await this.db.swipe.findMany({
+    where: { developerId },
+    select: { questionId: true },
+  });
 
-    const swiped = await this.db.swipe.findMany({
-      where: { developerId },
-      select: { questionId: true },
-    });
-    const swipedIds = swiped.map((s: any) => s.questionId);
-    if (swipedIds.length > 0) where.id = { notIn: swipedIds };
+  const swipedIds = swiped.map((s: any) => s.questionId);
+  if (swipedIds.length > 0) where.id = { notIn: swipedIds };
 
-    return this.db.question.findMany({
-      where,
-      include: {
-        fingerprint: true,
-        user: { select: { id: true, name: true, avgRating: true, badges: true } },
-      },
-      orderBy: [{ clarityScore: 'desc' }, { createdAt: 'desc' }],
-      take: filters.limit ? parseInt(filters.limit) : 20,
-      skip: filters.offset ? parseInt(filters.offset) : 0,
-    });
-  }
+  const questions = await this.db.question.findMany({
+    where,
+    include: {
+      fingerprint: true,
+      user: { select: { id: true, name: true, avgRating: true, badges: true } },
+    },
+    orderBy: [{ clarityScore: 'desc' }, { createdAt: 'desc' }],
+    take: filters.limit ? parseInt(filters.limit) : 20,
+    skip: filters.offset ? parseInt(filters.offset) : 0,
+  });
+
+  const helperRequests = await this.db.helperRequest.findMany({
+    where: { status: 'OPEN' },
+    include: {
+      question: { select: { id: true, title: true, description: true, stackTags: true } },
+      originalDev: { select: { id: true, name: true, avatarUrl: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  const helperCards = helperRequests.map(r => ({
+    ...r.question,
+    helperRequestId: r.id,
+    helperRole: r.role,
+    helperScopeDescription: r.scopeDescription,
+    helperTier: r.tier,
+    isHelperRequest: true,
+    isOwnRequest: r.originalDevId === developerId,
+  }));
+
+  return [...questions, ...helperCards];
+}
 
   async getById(id: string) {
     return this.db.question.findUnique({

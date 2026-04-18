@@ -228,15 +228,24 @@ async autoReleaseExpiredSessions() {
     return { message: 'Session declined, question re-opened' };
   }
 
-  async complete(sessionId: string, developerId: string) {
-    const session = await this.getSession(sessionId);
-    if (session.developerId !== developerId) throw new ForbiddenException();
-    if (session.status !== 'ACTIVE') throw new BadRequestException('Session is not active');
+async complete(sessionId: string, developerId: string) {
+  const session = await this.getSession(sessionId);
+  if (session.developerId !== developerId) throw new ForbiddenException();
+  if (session.status !== 'ACTIVE') throw new BadRequestException('Session is not active');
 
-    await this.db.session.update({
-      where: { id: sessionId },
-      data: { status: 'ENDED', endedAt: new Date() },
-    });
+  // Enforce helper must complete first
+  const pendingHelper = await this.db.helperRequest.findFirst({
+    where: {
+      originalSessionId: sessionId,
+      status: { in: ['ACTIVE', 'PAID'] },
+    },
+  });
+  if (pendingHelper) throw new BadRequestException('Helper must mark their work complete before you can complete the session');
+
+  await this.db.session.update({
+    where: { id: sessionId },
+    data: { status: 'ENDED', endedAt: new Date() },
+  });
 
     await this.db.thread.updateMany({
   where: { sessionId },
