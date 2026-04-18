@@ -264,14 +264,14 @@ export class ModerationModule {}
 // ─── PUBLIC ──────────────────────────────────────────────────────────────────
 @Injectable() export class PublicService {
   constructor(private readonly db: DatabaseService) {}
-  getMarqueeQuestions() {
-    return this.db.question.findMany({
-      where: { status: { in: ['LOCKED', 'AWAITING_ACCEPT'] } },
-      select: { id: true, title: true, url: true, fingerprint: true },
-      orderBy: { createdAt: 'desc' },
-      take: 20,
-    })
-  }
+ getMarqueeQuestions() {
+  return this.db.question.findMany({
+    where: { status: { in: ['OPEN', 'LOCKED', 'AWAITING_ACCEPT'] } },
+    select: { id: true, title: true, url: true, fingerprint: true },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+  })
+}
 }
 @Controller('public') export class PublicController {
   constructor(private readonly pub: PublicService) {}
