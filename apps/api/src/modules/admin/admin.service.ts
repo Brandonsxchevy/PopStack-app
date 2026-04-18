@@ -5,6 +5,34 @@ import { DatabaseService } from '@/database/database.service';
 export class AdminService {
   constructor(private readonly db: DatabaseService) {}
 
+  async trashQuestion(id: string) {
+  return this.db.question.update({
+    where: { id },
+    data: { status: 'TRASHED' as any },
+  })
+  }
+
+  async refundQuestion(id: string) {
+  const session = await this.db.session.findFirst({
+    where: { questionId: id, status: 'PENDING_ACCEPT' },
+  })
+  if (!session?.stripePaymentIntentId) {
+    throw new Error('No pending session found for this question')
+  }
+  const Stripe = require('stripe')
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
+  await stripe.paymentIntents.cancel(session.stripePaymentIntentId)
+  await this.db.session.update({
+    where: { id: session.id },
+    data: { status: 'CANCELLED', escrowStatus: 'REFUNDED' },
+  })
+  await this.db.question.update({
+    where: { id },
+    data: { status: 'LOCKED' as any },
+  })
+  return { message: 'Refunded and question re-opened' }
+}
+  
   async getStats() {
     const [users, developers, questions, sessions, revenue] = await Promise.all([
       this.db.user.count({ where: { role: 'USER' } }),
