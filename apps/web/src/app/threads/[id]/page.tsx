@@ -17,17 +17,6 @@ const TIER_LABELS: Record<string, string> = {
   FIFTY_PLUS: '$75+ — Full solution',
 }
 
-const LANGUAGES = [
-  { code: 'en', label: 'English' },
-  { code: 'es', label: 'Spanish' },
-  { code: 'fr', label: 'French' },
-  { code: 'pt', label: 'Portuguese' },
-  { code: 'zh', label: 'Chinese' },
-  { code: 'ja', label: 'Japanese' },
-  { code: 'ar', label: 'Arabic' },
-  { code: 'hi', label: 'Hindi' },
-]
-
 async function googleTranslate(text: string, targetLang: string): Promise<{ translated: string; detectedLang: string }> {
   try {
     const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`
@@ -77,7 +66,6 @@ function ContextPanel({ thread, session, isDev }: { thread: any; session: any; i
 
   return (
     <div style={{ background: 'var(--color-background-primary)', borderBottom: '0.5px solid var(--color-border-tertiary)' }}>
-      {/* Person info */}
       <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '0.5px solid var(--color-border-tertiary)' }}>
         <div style={{
           width: 40, height: 40, borderRadius: '50%',
@@ -108,8 +96,6 @@ function ContextPanel({ thread, session, isDev }: { thread: any; session: any; i
           </div>
         )}
       </div>
-
-      {/* Question info */}
       <div style={{ padding: '12px 16px' }}>
         <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 4 }}>
           {question?.title}
@@ -132,8 +118,6 @@ function ContextPanel({ thread, session, isDev }: { thread: any; session: any; i
             </span>
           )}
         </div>
-
-        {/* AI Summary — dev only */}
         {isDev && (
           <button onClick={getSummary} disabled={loadingSummary}
             style={{
@@ -205,7 +189,6 @@ function DevTimeTracker({ threadId, isActive }: { threadId: string; isActive: bo
   }, [threadId])
 
   const fmt = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`
-
   if (!isActive) return null
 
   return (
@@ -261,14 +244,12 @@ export default function ThreadPage() {
   const [text, setText] = useState('')
   const [code, setCode] = useState('')
   const [showCode, setShowCode] = useState(false)
-  const [translateMode, setTranslateMode] = useState(false)
-  const [devLang, setDevLang] = useState('en')
-  const [showLangPicker, setShowLangPicker] = useState(false)
   const [translations, setTranslations] = useState<Record<string, string>>({})
-  const [detectedUserLang, setDetectedUserLang] = useState<string | null>(null)
-  const [translating, setTranslating] = useState(false)
+  const [detectedLang, setDetectedLang] = useState<string | null>(null)
   const [showRatingModal, setShowRatingModal] = useState(false)
   const [showDevRatingModal, setShowDevRatingModal] = useState(false)
+
+  const myLang = typeof navigator !== 'undefined' ? navigator.language.split('-')[0] : 'en'
 
   const { data: thread, isLoading } = useQuery({
     queryKey: ['thread', id],
@@ -293,11 +274,6 @@ export default function ThreadPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  useEffect(() => {
-    if (!translateMode || !messages.length) return
-    translateAllMessages()
-  }, [translateMode, messages.length])
-
   const getMessageText = (msg: any): string => {
     if (!Array.isArray(msg.blocks)) return ''
     return msg.blocks
@@ -306,23 +282,25 @@ export default function ThreadPage() {
       .join(' ')
   }
 
-  const translateAllMessages = async () => {
-    setTranslating(true)
-    const newTranslations: Record<string, string> = {}
-    let detectedLang: string | null = null
-    for (const msg of messages) {
-      if (msg.type === 'SYSTEM_EVENT') continue
-      const isFromOther = msg.senderId !== user?.id
-      const msgText = getMessageText(msg)
-      if (!msgText || !isFromOther) continue
-      const result = await googleTranslate(msgText, devLang)
-      newTranslations[msg.id] = result.translated
-      if (!detectedLang) detectedLang = result.detectedLang
-    }
-    if (detectedLang) setDetectedUserLang(detectedLang)
-    setTranslations(newTranslations)
-    setTranslating(false)
-  }
+  // Auto-translate incoming messages
+  useEffect(() => {
+    if (!messages.length || !user) return
+    const otherMessages = (messages as any[]).filter(m => m.senderId !== user.id && m.type !== 'SYSTEM_EVENT')
+    if (!otherMessages.length) return
+    const firstText = getMessageText(otherMessages[0])
+    if (!firstText) return
+    googleTranslate(firstText, myLang).then(({ detectedLang: detected }) => {
+      if (detected === myLang) return
+      setDetectedLang(detected)
+      otherMessages.forEach((msg: any) => {
+        const text = getMessageText(msg)
+        if (!text) return
+        googleTranslate(text, myLang).then(({ translated }) => {
+          setTranslations(prev => ({ ...prev, [msg.id]: translated }))
+        })
+      })
+    })
+  }, [messages.length, user?.id])
 
   const accept = useMutation({
     mutationFn: () => api.post(`/sessions/${thread.sessionId}/accept`),
@@ -367,9 +345,14 @@ export default function ThreadPage() {
   })
 
   const send = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
+      let outgoingText = text.trim()
+      if (outgoingText && detectedLang && detectedLang !== myLang) {
+        const { translated } = await googleTranslate(outgoingText, detectedLang)
+        outgoingText = translated
+      }
       const blocks: any[] = []
-      if (text.trim()) blocks.push({ type: 'text', content: text.trim() })
+      if (outgoingText) blocks.push({ type: 'text', content: outgoingText })
       if (showCode && code.trim()) blocks.push({ type: 'code', content: code.trim() })
       if (!blocks.length) return Promise.reject(new Error('Empty message'))
       return api.post(`/threads/${id}/messages`, { blocks, type: 'PAID_MESSAGE' })
@@ -426,42 +409,20 @@ export default function ThreadPage() {
             {isActive ? '🟢 Active' : isEnded ? '✅ Awaiting approval' : isPendingAccept ? '⏳ Pending' : 'Thread'}
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {isDev && (
-            <div className="relative">
-              {translateMode ? (
-                <button onClick={() => { setTranslateMode(false); setTranslations({}); setDetectedUserLang(null) }}
-                  className="text-xs text-red-400 border border-red-200 px-2 py-1 rounded-lg">
-                  🌐 Off
-                </button>
-              ) : (
-                <button onClick={() => setShowLangPicker(!showLangPicker)}
-                  className="text-xs text-gray-500 border border-gray-200 px-2 py-1 rounded-lg">
-                  🌐
-                </button>
-              )}
-              {showLangPicker && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowLangPicker(false)} />
-                  <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-xl shadow-xl z-50 py-1 min-w-[140px]">
-                    <p className="text-xs text-gray-400 px-3 py-1.5 border-b border-gray-100">Translate to</p>
-                    {LANGUAGES.map(lang => (
-                      <button key={lang.code} onClick={() => { setDevLang(lang.code); setTranslateMode(true); setShowLangPicker(false) }}
-                        className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-brand-light hover:text-brand">
-                        {lang.label}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-          <Link href={isDev ? '/inbox' : '/dashboard'} className="text-brand font-bold text-lg">PS</Link>
-        </div>
+        <Link href={isDev ? '/inbox' : '/dashboard'} className="text-brand font-bold text-lg">PS</Link>
       </nav>
 
       {/* Context panel */}
       <ContextPanel thread={thread} session={session} isDev={isDev} />
+
+      {/* Auto-translation indicator — TODO: add per-user toggle in admin settings */}
+      {detectedLang && detectedLang !== myLang && (
+        <div className="bg-blue-50 border-b border-blue-100 px-4 py-1.5 text-center">
+          <span className="text-xs text-blue-500">
+            Auto-translating · {detectedLang.toUpperCase()} ↔ {myLang.toUpperCase()}
+          </span>
+        </div>
+      )}
 
       {/* Session action banners */}
       {isDev && isPendingAccept && session && (
@@ -518,15 +479,6 @@ export default function ThreadPage() {
         </div>
       )}
 
-      {/* Translation bar */}
-      {isDev && translateMode && (
-        <div className="bg-blue-50 border-b border-blue-200 px-4 py-1.5 text-center">
-          <span className="text-xs text-blue-700">
-            {translating ? '🌐 Translating...' : `🌐 ${LANGUAGES.find(l => l.code === devLang)?.label}${detectedUserLang ? ` ↔ ${LANGUAGES.find(l => l.code === detectedUserLang)?.label || detectedUserLang}` : ''}`}
-          </span>
-        </div>
-      )}
-
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 max-w-2xl mx-auto w-full">
         {messagesLoading ? (
@@ -542,7 +494,7 @@ export default function ThreadPage() {
             </p>
           </div>
         ) : (
-          messages.map((msg: any) => {
+          (messages as any[]).map((msg: any) => {
             const isMe = msg.senderId === user?.id
             const isSystem = msg.type === 'SYSTEM_EVENT'
             const otherName = isDev ? thread.user?.name : thread.developer?.name
@@ -556,7 +508,7 @@ export default function ThreadPage() {
             )
 
             const translatedText = translations[msg.id]
-            const showTranslation = translateMode && !isMe && translatedText
+            const showTranslation = !isMe && !!translatedText
 
             return (
               <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
@@ -567,6 +519,7 @@ export default function ThreadPage() {
                       <div key={i}>
                         {block.type === 'text' && (
                           <p className="text-sm leading-relaxed whitespace-pre-wrap">{
+                            showTranslation && i === 0 ? translatedText :
                             typeof block.content === 'string' ? block.content :
                             block.content?.content?.[0]?.content?.[0]?.text || ''
                           }</p>
@@ -578,12 +531,6 @@ export default function ThreadPage() {
                         )}
                       </div>
                     ))}
-                    {showTranslation && (
-                      <div className="mt-2 pt-2 border-t border-gray-100">
-                        <p className="text-xs text-brand font-medium mb-0.5">🌐 Translation</p>
-                        <p className="text-sm leading-relaxed text-gray-700">{translatedText}</p>
-                      </div>
-                    )}
                   </div>
                   <span className="text-xs text-gray-400 px-1">
                     {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -596,8 +543,16 @@ export default function ThreadPage() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input — only when session is active */}
-      {canChat && (
+      {/* Input */}
+      {!session && !isDev ? (
+        <div className="bg-white border-t border-gray-200 p-4 text-center max-w-2xl mx-auto w-full">
+          <p className="text-sm text-gray-500 mb-3">Payment required to start this session</p>
+          <button onClick={() => router.push(`/question/${thread.question?.id}`)}
+            className="btn-primary px-6 py-2 text-sm">
+            Go to question →
+          </button>
+        </div>
+      ) : canChat ? (
         <div className="bg-white border-t border-gray-200 p-3 max-w-2xl mx-auto w-full">
           {showCode && (
             <div className="mb-2">
@@ -640,7 +595,7 @@ export default function ThreadPage() {
           </div>
           <p className="text-xs text-gray-400 mt-1.5 px-1">Enter to send · Shift+Enter for new line</p>
         </div>
-      )}
+      ) : null}
 
       <DevTimeTracker threadId={id as string} isActive={isActive && isDev} />
 

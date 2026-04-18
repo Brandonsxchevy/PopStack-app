@@ -1,5 +1,4 @@
 'use client'
-import { useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -7,6 +6,7 @@ import { z } from 'zod'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { Suspense } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 
 const schema = z.object({
   title: z.string().min(5, 'Please describe the problem in at least 5 characters'),
@@ -35,6 +35,7 @@ function AskForm() {
   const searchParams = useSearchParams()
   const devId = searchParams.get('devId')
   const linkId = searchParams.get('linkId')
+  const questionId = searchParams.get('questionId') || ''
 
   const [loading, setLoading] = useState(false)
   const [screenshotKeys, setScreenshotKeys] = useState<string[]>([])
@@ -46,6 +47,17 @@ function AskForm() {
     defaultValues: { budgetTier: 'TWENTY', urgency: 'MEDIUM' },
   })
 
+  useEffect(() => {
+  if (!questionId) return
+  fetch(`${process.env.NEXT_PUBLIC_API_URL}/public/questions`)
+    .then(r => r.json())
+    .then((questions: any[]) => {
+      const q = questions.find((q: any) => q.id === questionId)
+      if (q) setValue('title', q.title)
+    })
+    .catch(() => {})
+}, [questionId])
+  
   const budget = watch('budgetTier')
   const urgency = watch('urgency')
 

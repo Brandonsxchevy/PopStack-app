@@ -18,7 +18,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import {
   UsersModule, ContractsModule, JobsModule, RatingsModule,
   ThreadsModule, MessagesModule, LinksModule, ProfilesModule,
-  RetainersModule, TranslationModule, ModerationModule,
+  RetainersModule, TranslationModule, ModerationModule, PublicModule,
 } from './modules/stubs';
 
 @Module({
