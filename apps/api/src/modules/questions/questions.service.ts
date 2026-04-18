@@ -97,16 +97,15 @@ async getMyQuestions(userId: string) {
     return this.db.question.delete({ where: { id } });
   }
 
-  async getFeed(developerId: string, filters: any) {
-    const where: any = { status: 'OPEN', preSelectedDevId: null };
-
-    if (filters.minClarity) where.clarityScore = { gte: parseFloat(filters.minClarity) };
-    if (filters.budgetTier) where.budgetTier = filters.budgetTier;
-
-    const swiped = await this.db.swipe.findMany({
-      where: { developerId },
-      select: { questionId: true },
-    });
+async getFeed(developerId: string, filters: any) {
+  const where: any = { status: 'OPEN', preSelectedDevId: null };
+  if (filters.minClarity) where.clarityScore = { gte: parseFloat(filters.minClarity) };
+  if (filters.budgetTier) where.budgetTier = filters.budgetTier;
+  const swiped = await this.db.swipe.findMany({
+    where: { developerId },
+    select: { questionId: true },
+  });
+  
     const swipedIds = swiped.map((s: any) => s.questionId);
     if (swipedIds.length > 0) where.id = { notIn: swipedIds };
 
