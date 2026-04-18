@@ -438,16 +438,34 @@ export default function ThreadPage() {
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to complete'),
   })
 
-  const approve = useMutation({
-    mutationFn: () => api.post(`/sessions/${thread.sessionId}/approve`),
-    onSuccess: () => {
-      toast.success('Work approved — payment released! 🎉')
-      qc.invalidateQueries({ queryKey: ['session', thread?.sessionId] })
-      qc.invalidateQueries({ queryKey: ['thread', id] })
-      setShowRatingModal(true)
-    },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to approve'),
-  })
+const approve = useMutation({
+  mutationFn: () => api.post(`/sessions/${thread.sessionId}/approve`),
+  onSuccess: () => {
+    toast.success('Work approved — payment released! 🎉')
+    qc.invalidateQueries({ queryKey: ['session', thread?.sessionId] })
+    qc.invalidateQueries({ queryKey: ['thread', id] })
+    setShowRatingModal(true)
+  },
+  onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to approve'),
+})
+
+const acceptHelper = useMutation({
+  mutationFn: () => api.post(`/helper-requests/${helperRequest?.id}/accept`),
+  onSuccess: () => {
+    toast.success('Helper accepted!')
+    qc.invalidateQueries({ queryKey: ['helper-request', thread?.sessionId] })
+  },
+  onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to accept helper'),
+})
+
+const declineHelper = useMutation({
+  mutationFn: () => api.post(`/helper-requests/${helperRequest?.id}/decline`),
+  onSuccess: () => {
+    toast.success('Helper declined')
+    qc.invalidateQueries({ queryKey: ['helper-request', thread?.sessionId] })
+  },
+  onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to decline helper'),
+})
 
   const send = useMutation({
     mutationFn: async () => {
