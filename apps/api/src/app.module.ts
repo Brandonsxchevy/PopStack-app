@@ -15,6 +15,7 @@ import { HealthController } from './health.controller';
 import { EarningsModule } from './modules/earnings/earnings.module';
 import { SwipesModule } from './modules/swipes/swipes.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { HelperRequestsModule } from './modules/helper-requests/helper-requests.module';
 import {
   UsersModule, ContractsModule, JobsModule, RatingsModule,
   ThreadsModule, MessagesModule, LinksModule, ProfilesModule,
@@ -39,6 +40,7 @@ import {
     UploadsModule,
     AdminModule,
     UsersModule,
+    HelperRequestsModule,
     ContractsModule,
     JobsModule,
     RatingsModule,
