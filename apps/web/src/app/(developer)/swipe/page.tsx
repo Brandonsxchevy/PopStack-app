@@ -1,9 +1,9 @@
 'use client'
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 interface Signal {
   source: string
@@ -40,15 +40,21 @@ function getDnsProvider(signals?: Signal[]) {
   return sig?.signal?.replace('dns_provider: ', '') ?? null
 }
 
-export default function SwipeFeedPage() {
+function SwipeFeedPage() {
   const qc = useQueryClient()
   const [current, setCurrent] = useState(0)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const highlightId = searchParams.get('questionId') || ''
 
-  const { data: questions = [], isLoading } = useQuery<Question[]>({
+  const { data: rawFeed = [], isLoading } = useQuery<Question[]>({
     queryKey: ['feed'],
     queryFn: () => api.get('/questions/feed').then(r => r.data),
   })
+
+  const questions = highlightId
+    ? [...rawFeed].sort((a, b) => a.id === highlightId ? -1 : b.id === highlightId ? 1 : 0)
+    : rawFeed
 
   const swipe = useMutation({
     mutationFn: ({ questionId, action }: { questionId: string; action: string }) =>
@@ -93,16 +99,19 @@ export default function SwipeFeedPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
         <span className="text-xl font-bold text-brand">PopStack</span>
         <span className="text-sm text-gray-500">{current + 1} of {questions.length}</span>
       </div>
 
       <div className="max-w-lg mx-auto p-4 pt-6">
-        <div className="card shadow-sm mb-4">
+        {highlightId && card.id === highlightId && (
+          <div className="bg-purple-50 border border-purple-200 rounded-xl px-4 py-2 mb-3 text-sm text-purple-700 font-medium">
+            ⚡ Someone referred this question to you
+          </div>
+        )}
 
-          {/* Badges row */}
+        <div className="card shadow-sm mb-4">
           <div className="flex flex-wrap items-center gap-2 mb-3">
             {card.fingerprint?.platform && card.fingerprint.platform !== 'UNKNOWN' && (
               <span className="text-xs px-2 py-0.5 rounded-full bg-brand-light text-brand font-medium">
@@ -125,7 +134,6 @@ export default function SwipeFeedPage() {
             </span>
           </div>
 
-          {/* Screenshot */}
           {card.screenshotKeys.length > 0 && (
             <div className="bg-gray-100 rounded-lg h-32 mb-3 overflow-hidden">
               <img
@@ -137,15 +145,12 @@ export default function SwipeFeedPage() {
             </div>
           )}
 
-          {/* Title */}
           <h2 className="text-lg font-semibold text-gray-900 mb-2">{card.title}</h2>
 
-          {/* Description */}
           {card.description && (
             <p className="text-sm text-gray-600 mb-3 line-clamp-3">{card.description}</p>
           )}
 
-          {/* URL */}
           {card.url && (
             <a href={card.url} target="_blank" rel="noopener noreferrer"
               className="text-xs text-brand underline block mb-3 truncate">
@@ -153,7 +158,6 @@ export default function SwipeFeedPage() {
             </a>
           )}
 
-          {/* Stack tags */}
           {card.stackTags.length > 0 && (
             <div className="flex flex-wrap gap-1 mb-3">
               {card.stackTags.map(t => (
@@ -164,7 +168,6 @@ export default function SwipeFeedPage() {
             </div>
           )}
 
-          {/* Footer: user + budget */}
           <div className="flex items-center justify-between pt-3 border-t border-gray-100">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-full bg-brand-light flex items-center justify-center text-brand text-xs font-bold shrink-0">
@@ -181,7 +184,6 @@ export default function SwipeFeedPage() {
           </div>
         </div>
 
-        {/* Action buttons */}
         <div className="grid grid-cols-3 gap-3">
           <button
             onClick={() => swipe.mutate({ questionId: card.id, action: 'SKIP' })}
@@ -204,5 +206,13 @@ export default function SwipeFeedPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function SwipePage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen text-gray-400">Loading...</div>}>
+      <SwipeFeedPage />
+    </Suspense>
   )
 }
