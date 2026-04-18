@@ -40,7 +40,7 @@ export default function HomePage() {
   }, [])
 
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/public/questions`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/public/questions`)
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data?.length) setQuestions(data) })
       .catch(() => {})
