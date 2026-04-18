@@ -17,7 +17,7 @@ import { SwipesModule } from './modules/swipes/swipes.module';
 import { AdminModule } from './modules/admin/admin.module';
 import {
   UsersModule, ContractsModule, JobsModule, RatingsModule,
-  MessagesModule, LinksModule, ProfilesModule,
+  ThreadsModule, MessagesModule, LinksModule, ProfilesModule,
   RetainersModule, TranslationModule, ModerationModule,
 } from './modules/stubs';
 
