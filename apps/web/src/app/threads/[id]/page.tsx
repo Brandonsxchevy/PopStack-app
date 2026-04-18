@@ -368,6 +368,13 @@ export default function ThreadPage() {
     refetchInterval: 5000,
   })
 
+  const { data: helperRequest } = useQuery({
+  queryKey: ['helper-request', thread?.sessionId],
+  queryFn: () => api.get(`/helper-requests/session/${thread.sessionId}`).then(r => r.data),
+  enabled: !!thread?.sessionId && isActive,
+  refetchInterval: 5000,
+})
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
