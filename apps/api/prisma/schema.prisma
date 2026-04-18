@@ -28,6 +28,7 @@ enum QuestionStatus {
   AWAITING_ACCEPT
   CLOSED
   EXPIRED
+  TRASHED
 }
 
 enum BudgetTier {
