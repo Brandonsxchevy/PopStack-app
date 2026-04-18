@@ -483,16 +483,49 @@ export default function ThreadPage() {
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 max-w-2xl mx-auto w-full">
         {messagesLoading ? (
           <div className="text-center text-gray-400 py-8 text-sm">Loading messages...</div>
-        ) : messages.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="text-3xl mb-2">💬</div>
-            <p className="text-gray-500 text-sm">No messages yet.</p>
-            <p className="text-gray-400 text-xs mt-1">
-              {isDev
-                ? isPendingAccept ? 'Accept the session to start chatting.' : 'Start the conversation with your client.'
-                : isActive ? 'Your developer is working on it.' : 'Your developer will reach out shortly.'}
-            </p>
-          </div>
+      ) : messages.length === 0 ? (
+  <div className="text-center py-8">
+    <div className="text-3xl mb-2">💬</div>
+    {!session ? (
+      isDev ? (
+        <>
+          <p className="text-gray-500 text-sm">Waiting for payment</p>
+          <p className="text-gray-400 text-xs mt-1">The client hasn't started a session yet.</p>
+        </>
+      ) : (
+        <>
+          <p className="text-gray-500 text-sm">Ready to get started?</p>
+          <p className="text-gray-400 text-xs mt-1 mb-3">Pay to begin your session with this developer.</p>
+          <button onClick={() => router.push(`/question/${thread.question?.id}`)}
+            className="btn-primary px-5 py-2 text-sm">
+            Go to question →
+          </button>
+        </>
+      )
+    ) : isPendingAccept ? (
+      isDev ? (
+        <>
+          <p className="text-gray-500 text-sm">New session request</p>
+          <p className="text-gray-400 text-xs mt-1">Accept the session above to start chatting.</p>
+        </>
+      ) : (
+        <>
+          <p className="text-gray-500 text-sm">Waiting for your developer to accept</p>
+          <p className="text-gray-400 text-xs mt-1">They'll reach out once they accept the session.</p>
+        </>
+      )
+    ) : isActive ? (
+      <>
+        <p className="text-gray-500 text-sm">Session is active</p>
+        <p className="text-gray-400 text-xs mt-1">{isDev ? 'Send the first message to get started.' : 'Your developer will reach out shortly.'}</p>
+      </>
+    ) : (
+      <>
+        <p className="text-gray-500 text-sm">No messages yet.</p>
+        <p className="text-gray-400 text-xs mt-1">Your developer will reach out shortly.</p>
+      </>
+    )}
+  </div>
         ) : (
           (messages as any[]).map((msg: any) => {
             const isMe = msg.senderId === user?.id
