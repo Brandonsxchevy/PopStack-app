@@ -45,7 +45,7 @@ export class HelperRequestsService {
     const requests = await this.db.helperRequest.findMany({
       where: { status: 'OPEN' },
       include: {
-        question: { select: { id: true, title: true, description: true, techStack: true } },
+      question: { select: { id: true, title: true, description: true, stackTags: true } },
         originalDev: { select: { id: true, name: true, avatarUrl: true } },
       },
       orderBy: { createdAt: 'desc' },
