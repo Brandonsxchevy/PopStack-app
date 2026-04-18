@@ -1,13 +1,14 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
 import { toast } from 'sonner'
+import { Suspense } from 'react'
 
 const schema = z.object({
   email: z.string().email(),
@@ -15,11 +16,13 @@ const schema = z.object({
 })
 type FormData = z.infer<typeof schema>
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
-  const { setAuth, isAuthenticated, user } = useAuthStore()
+  const searchParams = useSearchParams()
+  const questionId = searchParams.get('questionId') || ''
+  const role = searchParams.get('role') || ''
+  const { setAuth } = useAuthStore()
   const [loading, setLoading] = useState(false)
-
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
@@ -29,12 +32,13 @@ export default function LoginPage() {
     try {
       const res = await api.post('/auth/login', data)
       setAuth(res.data.accessToken, res.data.user)
-      if (res.data.user.role === 'DEVELOPER') {
-        router.push('/swipe')
-      } else if (res.data.user.role === 'ADMIN') {
+      const userRole = res.data.user.role
+      if (userRole === 'ADMIN') {
         router.push('/admin')
+      } else if (userRole === 'DEVELOPER') {
+        router.push(questionId ? `/swipe?questionId=${questionId}` : '/swipe')
       } else {
-        router.push('/dashboard')
+        router.push(questionId ? `/ask?questionId=${questionId}` : '/dashboard')
       }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Login failed')
@@ -63,8 +67,17 @@ export default function LoginPage() {
       </form>
       <p className="text-sm text-center text-gray-500 mt-4">
         No account?{' '}
-        <Link href="/auth/signup" className="text-brand font-medium">Sign up</Link>
+        <Link href={`/auth/signup${role ? `?role=${role}` : ''}${questionId ? `${role ? '&' : '?'}questionId=${questionId}` : ''}`}
+          className="text-brand font-medium">Sign up</Link>
       </p>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="card shadow-sm p-8 text-center text-gray-400">Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   )
 }
