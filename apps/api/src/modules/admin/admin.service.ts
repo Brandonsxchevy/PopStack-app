@@ -14,11 +14,15 @@ export class AdminService {
 
   async refundQuestion(id: string) {
   const session = await this.db.session.findFirst({
-    where: { questionId: id, status: 'PENDING_ACCEPT' },
-  })
-  if (!session?.stripePaymentIntentId) {
-    throw new Error('No pending session found for this question')
-  }
+  where: { 
+    questionId: id, 
+    status: { in: ['PENDING_ACCEPT', 'AWAITING_ACCEPT'] as any },
+  },
+})
+ if (!session?.stripePaymentIntentId) {
+  throw new BadRequestException('No pending session with payment found for this question')
+}
+    
   const Stripe = require('stripe')
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
   await stripe.paymentIntents.cancel(session.stripePaymentIntentId)
