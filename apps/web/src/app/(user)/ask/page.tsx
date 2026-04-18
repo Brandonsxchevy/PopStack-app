@@ -35,6 +35,7 @@ function AskForm() {
   const searchParams = useSearchParams()
   const devId = searchParams.get('devId')
   const linkId = searchParams.get('linkId')
+  const questionId = searchParams.get('questionId') || ''
 
   const [loading, setLoading] = useState(false)
   const [screenshotKeys, setScreenshotKeys] = useState<string[]>([])
