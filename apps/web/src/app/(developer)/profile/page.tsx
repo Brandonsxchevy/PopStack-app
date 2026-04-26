@@ -258,6 +258,20 @@ export default function DeveloperProfilePage() {
           </div>
         </div>
 
+        {/* Payouts */}
+    <div className="card">
+  <div className="flex items-center justify-between">
+    <div>
+      <p className="text-sm font-medium text-gray-700">Payout account</p>
+      <p className="text-xs text-gray-500 mt-0.5">Required to receive earnings — set up in Earnings tab</p>
+    </div>
+    <button onClick={() => router.push('/earnings')}
+      className="text-xs text-brand border border-brand/30 px-3 py-1.5 rounded-lg hover:bg-brand-light transition-colors">
+      Go to Earnings →
+    </button>
+  </div>
+    </div>
+
         {/* Ratings */}
         {profile?.ratingsReceived?.length > 0 && (
           <div className="card">
