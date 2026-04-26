@@ -32,6 +32,12 @@ export default function QuestionPage() {
     queryFn: () => api.get(`/questions/${id}`).then(r => r.data),
   })
 
+  // 1. Invalidate on mount/id change
+useEffect(() => {
+  qc.invalidateQueries({ queryKey: ['question', id] })
+  }, [id])
+
+// 2. Handle payment redirect params (existing)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const sessionStatus = params.get('session')
