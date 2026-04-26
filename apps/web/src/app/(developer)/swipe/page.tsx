@@ -62,6 +62,7 @@ function getDnsProvider(signals?: Signal[]) {
 function SwipeFeedPage() {
   const qc = useQueryClient()
   const [current, setCurrent] = useState(0)
+  const [expanded, setExpanded] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
   const highlightId = searchParams.get('questionId') || ''
@@ -77,6 +78,7 @@ function SwipeFeedPage() {
     onSuccess: () => {
       toast.success('Response sent! Waiting for client to accept.')
       setCurrent(c => c + 1)
+      setExpanded(false)
     },
     onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to respond'),
   })
@@ -93,6 +95,7 @@ function SwipeFeedPage() {
         router.push(`/respond/${variables.questionId}`)
       } else {
         setCurrent(c => c + 1)
+        setExpanded(false)
       }
     },
     onError: () => toast.error('Failed to record swipe'),
@@ -132,7 +135,7 @@ function SwipeFeedPage() {
           <span className="text-sm text-gray-500">{current + 1} of {questions.length}</span>
         </div>
         <div className="max-w-lg mx-auto p-4 pt-6">
-          <div className="card shadow-sm mb-4">
+          <div className="card shadow-sm mb-4 cursor-pointer" onClick={() => setExpanded(!expanded)}>
             <div className="flex items-center gap-2 mb-3">
               <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">
                 🤝 Helper Request
@@ -156,8 +159,8 @@ function SwipeFeedPage() {
               </div>
             )}
 
-            {card.description && (
-              <p className="text-sm text-gray-600 mb-3 line-clamp-3">{card.description}</p>
+            {expanded && card.description && (
+              <p className="text-sm text-gray-600 mb-3">{card.description}</p>
             )}
 
             {card.stackTags?.length > 0 && (
@@ -173,16 +176,20 @@ function SwipeFeedPage() {
                 This is your helper request
               </div>
             )}
+
+            <div className="text-xs text-gray-400 text-right mt-1">
+              {expanded ? '▲ Less' : '▼ More'}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => setCurrent(c => c + 1)}
+              onClick={(e) => { e.stopPropagation(); setCurrent(c => c + 1); setExpanded(false) }}
               className="py-3 rounded-xl border border-gray-300 text-gray-600 font-medium hover:bg-gray-50 transition-colors">
               Skip
             </button>
             <button
-              onClick={() => respond.mutate(card.helperRequestId)}
+              onClick={(e) => { e.stopPropagation(); respond.mutate(card.helperRequestId) }}
               disabled={respond.isPending || card.isOwnRequest}
               className="py-3 rounded-xl bg-brand text-white font-medium hover:bg-brand-dark transition-colors disabled:opacity-50">
               {card.isOwnRequest ? 'Your request' : respond.isPending ? '...' : 'I can help'}
@@ -209,7 +216,7 @@ function SwipeFeedPage() {
           </div>
         )}
 
-        <div className="card shadow-sm mb-4">
+        <div className="card shadow-sm mb-4 cursor-pointer" onClick={() => setExpanded(!expanded)}>
           <div className="flex flex-wrap items-center gap-2 mb-3">
             {(card as Question).fingerprint?.platform && (card as Question).fingerprint?.platform !== 'UNKNOWN' && (
               <span className="text-xs px-2 py-0.5 rounded-full bg-brand-light text-brand font-medium">
@@ -232,7 +239,7 @@ function SwipeFeedPage() {
             </span>
           </div>
 
-          {(card as Question).screenshotKeys.length > 0 && (
+          {expanded && (card as Question).screenshotKeys.length > 0 && (
             <div className="bg-gray-100 rounded-lg h-32 mb-3 overflow-hidden">
               <img
                 src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/screenshots/${(card as Question).screenshotKeys[0]}`}
@@ -245,12 +252,17 @@ function SwipeFeedPage() {
 
           <h2 className="text-lg font-semibold text-gray-900 mb-2">{card.title}</h2>
 
-          {card.description && (
-            <p className="text-sm text-gray-600 mb-3 line-clamp-3">{card.description}</p>
+          {expanded ? (
+            <p className="text-sm text-gray-600 mb-3">{card.description}</p>
+          ) : (
+            card.description && (
+              <p className="text-sm text-gray-600 mb-3 line-clamp-2">{card.description}</p>
+            )
           )}
 
-          {(card as Question).url && (
+          {expanded && (card as Question).url && (
             <a href={(card as Question).url} target="_blank" rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
               className="text-xs text-brand underline block mb-3 truncate">
               {(card as Question).url}
             </a>
@@ -280,23 +292,27 @@ function SwipeFeedPage() {
             </div>
             <div className="text-lg font-bold text-brand">{BUDGET_LABELS[(card as Question).budgetTier]}</div>
           </div>
+
+          <div className="text-xs text-gray-400 text-right mt-2">
+            {expanded ? '▲ Less' : '▼ More'}
+          </div>
         </div>
 
         <div className="grid grid-cols-3 gap-3">
           <button
-            onClick={() => swipe.mutate({ questionId: card.id, action: 'SKIP' })}
+            onClick={(e) => { e.stopPropagation(); swipe.mutate({ questionId: card.id, action: 'SKIP' }) }}
             disabled={swipe.isPending}
             className="py-3 rounded-xl border border-gray-300 text-gray-600 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50">
             Skip
           </button>
           <button
-            onClick={() => swipe.mutate({ questionId: card.id, action: 'INTERESTED' })}
+            onClick={(e) => { e.stopPropagation(); swipe.mutate({ questionId: card.id, action: 'INTERESTED' }) }}
             disabled={swipe.isPending}
             className="py-3 rounded-xl border border-brand text-brand font-medium hover:bg-brand-light transition-colors disabled:opacity-50">
             Interested
           </button>
           <button
-            onClick={() => swipe.mutate({ questionId: card.id, action: 'ANSWER_NOW' })}
+            onClick={(e) => { e.stopPropagation(); swipe.mutate({ questionId: card.id, action: 'ANSWER_NOW' }) }}
             disabled={swipe.isPending}
             className="py-3 rounded-xl bg-brand text-white font-medium hover:bg-brand-dark transition-colors disabled:opacity-50">
             Answer
