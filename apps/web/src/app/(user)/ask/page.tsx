@@ -49,9 +49,9 @@ function AskForm() {
 
 useEffect(() => {
   if (!questionId) return
-  fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/questions/${questionId}`)
-    .then(r => r.ok ? r.json() : null)
-    .then((q: any) => {
+  api.get(`/questions/${questionId}`)
+    .then(res => {
+      const q = res.data
       if (!q) return
       setValue('title', `Similar issue: ${q.title}`)
       if (q.url) {
