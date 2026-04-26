@@ -192,6 +192,50 @@ export class LinksModule {}
   }
 }
 
+@Controller('profiles') export class ProfilesController {
+  constructor(
+    private readonly profiles: ProfilesService,
+    private readonly db: DatabaseService,
+    private readonly payments: PaymentsService,
+  ) {}
+
+  @Get(':username') getPublic(@Param('username') u: string) { return this.profiles.getPublic(u); }
+
+  @Patch('me') @UseGuards(JwtAuthGuard) updateMe(@CurrentUser() u: any, @Body() dto: any) { return this.profiles.update(u.id, dto); }
+
+  @Post('connect/onboard') @UseGuards(JwtAuthGuard, RolesGuard) @Roles('DEVELOPER')
+  async onboard(@CurrentUser() u: any) {
+    let user = await this.db.user.findUnique({ where: { id: u.id } })
+    let stripeAccountId = user?.stripeAccountId
+    if (!stripeAccountId) {
+      const account = await this.payments.createConnectAccount(u.id, u.email)
+      stripeAccountId = account.id
+    }
+    const link = await this.payments.createConnectOnboardingLink(
+      stripeAccountId!,
+      `${process.env.FRONTEND_URL}/profile?onboarded=true`,
+      `${process.env.FRONTEND_URL}/profile?onboarding=retry`,
+    )
+    return { url: link.url }
+  }
+
+  @Get('connect/status') @UseGuards(JwtAuthGuard, RolesGuard) @Roles('DEVELOPER')
+  async connectStatus(@CurrentUser() u: any) {
+    const user = await this.db.user.findUnique({ where: { id: u.id } })
+    if (!user?.stripeAccountId) return { connected: false }
+    const status = await this.payments.getConnectAccountStatus(user.stripeAccountId)
+    return { connected: true, ...status }
+  }
+}
+
+@Module({ 
+  imports: [PaymentsModule],
+  controllers: [ProfilesController], 
+  providers: [ProfilesService], 
+  exports: [ProfilesService] 
+})
+export class ProfilesModule {}
+
 // ─── RETAINERS ────────────────────────────────────────────────────────────────
 @Injectable() export class RetainersService {
   constructor(private readonly db: DatabaseService) {}
