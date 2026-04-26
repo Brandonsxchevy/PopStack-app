@@ -17,10 +17,19 @@ const FALLBACK_QUESTIONS = [
   { id: '10', title: 'Login page redirecting in loop', url: 'membersite.com', fingerprint: { platform: 'WORDPRESS' } },
 ]
 
+const STATUS_DOT: Record<string, string> = {
+  OPEN: '#22c55e',           // green
+  LOCKED: '#f59e0b',         // amber
+  AWAITING_ACCEPT: '#8b5cf6', // purple
+  ACTIVE: '#3b82f6',         // blue
+  CLOSED: '#6b7280',         // gray
+}
+
 type Question = {
   id: string
   title: string
   url: string
+  status?: string
   fingerprint?: { platform?: string }
 }
 
@@ -87,7 +96,7 @@ export default function HomePage() {
               onClick={() => setSelected(q)}
               className="flex items-center gap-3 bg-white border border-gray-200 rounded-full px-5 py-3 whitespace-nowrap hover:border-brand transition-colors flex-shrink-0"
             >
-              <span className="w-2.5 h-2.5 rounded-full bg-green-500 flex-shrink-0" />
+              <span style={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, background: STATUS_DOT[q.status || 'OPEN'] || '#22c55e' }} />
               <span className="text-sm font-medium text-gray-800">{q.title}</span>
               {q.fingerprint?.platform && q.fingerprint.platform !== 'UNKNOWN' && (
                 <span className="text-xs bg-purple-50 text-purple-700 px-2.5 py-1 rounded-full">
