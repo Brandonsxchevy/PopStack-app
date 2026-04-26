@@ -109,24 +109,23 @@ describe('PaymentsService — cashout / Stripe Connect', () => {
       expect(mockStripe.transfers.create).not.toHaveBeenCalled()
     })
 
-    it('calculates 15% platform fee correctly for different tiers', async () => {
-      mockDb.user.findUnique.mockResolvedValue({ stripeAccountId: 'acct_test' })
+   it('calculates 15% platform fee correctly for different tiers', async () => {
+  mockDb.user.findUnique.mockResolvedValue({ stripeAccountId: 'acct_test' })
 
-      // FIVE tier — $7.50
-      mockStripe.paymentIntents.retrieve.mockResolvedValue({ amount_received: 750 })
-      mockStripe.transfers.create.mockResolvedValue({ id: 'tr_1' })
-      await service.transferToDeveloper('pi_1', 'dev-1', 'session-1')
-      expect(mockStripe.transfers.create).toHaveBeenLastCalledWith(
-      expect.objectContaining({ amount: 637 }) // $7.50 - 15% = $6.375 → rounds to 637 cents
-    )
-      )
+    // FIVE tier — $7.50
+  mockStripe.paymentIntents.retrieve.mockResolvedValue({ amount_received: 750 })
+  mockStripe.transfers.create.mockResolvedValue({ id: 'tr_1' })
+  await service.transferToDeveloper('pi_1', 'dev-1', 'session-1')
+  expect(mockStripe.transfers.create).toHaveBeenLastCalledWith(
+    expect.objectContaining({ amount: 637 }) // $7.50 - 15% = $6.375 → rounds to 637 cents
+  )
 
-      // FULL_SOLUTION tier — $75.00
-      mockStripe.paymentIntents.retrieve.mockResolvedValue({ amount_received: 7500 })
-      await service.transferToDeveloper('pi_2', 'dev-1', 'session-2')
-      expect(mockStripe.transfers.create).toHaveBeenLastCalledWith(
-        expect.objectContaining({ amount: 6375 }) // $75 - 15% = $63.75
-      )
+    // FULL_SOLUTION tier — $75.00
+  mockStripe.paymentIntents.retrieve.mockResolvedValue({ amount_received: 7500 })
+  await service.transferToDeveloper('pi_2', 'dev-1', 'session-2')
+  expect(mockStripe.transfers.create).toHaveBeenLastCalledWith(
+    expect.objectContaining({ amount: 6375 }) // $75 - 15% = $63.75
+  )
     })
   })
 
