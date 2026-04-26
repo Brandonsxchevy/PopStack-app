@@ -165,14 +165,14 @@ export default function HomePage() {
             <p className="text-sm text-brand mb-5 truncate">{selected.url}</p>
             <p className="text-xs text-gray-400 text-center mb-3">What would you like to do?</p>
             <div className="flex flex-col gap-2">
-              <Link href="/auth/signup?role=user"
-                className="text-center py-3 rounded-xl bg-purple-50 text-purple-800 border border-purple-200 text-sm font-medium hover:bg-purple-100 transition-colors">
-                I have a similar problem
-              </Link>
-              <Link href="/auth/signup?role=developer"
-                className="text-center py-3 rounded-xl bg-brand text-white text-sm font-medium hover:bg-brand-dark transition-colors">
-                I can fix this →
-              </Link>
+             <Link href={`/auth/signup?role=user&questionId=${selected.id}`}
+      className="text-center py-3 rounded-xl bg-purple-50 text-purple-800 border border-purple-200 text-sm font-medium hover:bg-purple-100 transition-colors">
+      I have a similar problem
+    </Link>
+    <Link href={`/auth/signup?role=developer&questionId=${selected.id}`}
+      className="text-center py-3 rounded-xl bg-brand text-white text-sm font-medium hover:bg-brand-dark transition-colors">
+      I can fix this →
+      </Link>
             </div>
           </div>
         </div>
