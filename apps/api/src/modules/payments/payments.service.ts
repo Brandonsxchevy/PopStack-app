@@ -71,6 +71,37 @@ async createSubscription(customerId: string, developerName: string, metadata: Re
     });
   }
 
+  async createConnectAccount(developerId: string, email: string) {
+  const account = await this.stripe.accounts.create({
+    type: 'express',
+    email,
+    metadata: { developerId },
+  })
+  await this.db.user.update({
+    where: { id: developerId },
+    data: { stripeAccountId: account.id },
+  })
+  return account
+}
+
+async createConnectOnboardingLink(stripeAccountId: string, returnUrl: string, refreshUrl: string) {
+  return this.stripe.accountLinks.create({
+    account: stripeAccountId,
+    return_url: returnUrl,
+    refresh_url: refreshUrl,
+    type: 'account_onboarding',
+  })
+}
+
+async getConnectAccountStatus(stripeAccountId: string) {
+  const account = await this.stripe.accounts.retrieve(stripeAccountId)
+  return {
+    chargesEnabled: account.charges_enabled,
+    payoutsEnabled: account.payouts_enabled,
+    detailsSubmitted: account.details_submitted,
+  }
+}
+
   async getOrCreateCustomer(userId: string, email: string): Promise<string> {
     const user = await this.db.user.findUnique({ where: { id: userId } });
     if (user?.stripeCustomerId) return user.stripeCustomerId;
