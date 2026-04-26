@@ -458,9 +458,13 @@ const approve = useMutation({
 
 const acceptHelper = useMutation({
   mutationFn: () => api.post(`/helper-requests/${helperRequest?.id}/accept`),
-  onSuccess: () => {
-    toast.success('Helper accepted!')
-    qc.invalidateQueries({ queryKey: ['helper-request', thread?.sessionId] })
+  onSuccess: (res) => {
+    if (res.data?.checkoutUrl) {
+      window.location.href = res.data.checkoutUrl
+    } else {
+      toast.success('Helper accepted!')
+      qc.invalidateQueries({ queryKey: ['helper-request', thread?.sessionId] })
+    }
   },
   onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to accept helper'),
 })
