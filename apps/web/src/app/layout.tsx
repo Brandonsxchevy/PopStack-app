@@ -18,7 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         <Providers>
           {children}
-          <Toaster position="top-right" richColors />
+          <Toaster position="bottom-center" offset={80} richColors />
         </Providers>
       </body>
     </html>
