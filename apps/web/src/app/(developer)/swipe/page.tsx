@@ -72,34 +72,36 @@ function SwipeFeedPage() {
     queryFn: () => api.get('/questions/feed').then(r => r.data),
   })
 
-  const respond = useMutation({
-    mutationFn: (helperRequestId: string) =>
-      api.post(`/helper-requests/${helperRequestId}/respond`),
-    onSuccess: () => {
-      toast.success('Response sent! Waiting for client to accept.')
-      setCurrent(c => c + 1)
-      setExpanded(false)
-    },
-    onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to respond'),
-  })
+ const respond = useMutation({
+  mutationFn: (helperRequestId: string) =>
+    api.post(`/helper-requests/${helperRequestId}/respond`),
+  onSuccess: () => {
+    toast.success('Response sent! Waiting for client to accept.')
+    setCurrent(c => c + 1)
+    setExpanded(false)
+    qc.invalidateQueries({ queryKey: ['feed'] })
+  },
+  onError: (err: any) => toast.error(err.response?.data?.message || 'Failed to respond'),
+})
 
   const questions = highlightId
     ? [...rawFeed].sort((a, b) => a.id === highlightId ? -1 : b.id === highlightId ? 1 : 0)
     : rawFeed
 
   const swipe = useMutation({
-    mutationFn: ({ questionId, action }: { questionId: string; action: string }) =>
-      api.post('/swipes', { questionId, action }),
-    onSuccess: (_, variables) => {
-      if (variables.action === 'ANSWER_NOW') {
-        router.push(`/respond/${variables.questionId}`)
-      } else {
-        setCurrent(c => c + 1)
-        setExpanded(false)
-      }
-    },
-    onError: () => toast.error('Failed to record swipe'),
-  })
+  mutationFn: ({ questionId, action }: { questionId: string; action: string }) =>
+    api.post('/swipes', { questionId, action }),
+  onSuccess: (_, variables) => {
+    if (variables.action === 'ANSWER_NOW') {
+      router.push(`/respond/${variables.questionId}`)
+    } else {
+      setCurrent(c => c + 1)
+      setExpanded(false)
+      qc.invalidateQueries({ queryKey: ['feed'] })
+    }
+  },
+  onError: () => toast.error('Failed to record swipe'),
+})
 
   const card = questions[current]
 
