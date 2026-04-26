@@ -20,11 +20,11 @@ export default function EarningsPage() {
   })
 
   const handleConnectOnboard = async () => {
-    try {
-      const res = await api.post('/profiles/connect/onboard')
-      window.location.href = res.data.url
-    } catch {
-      alert('Failed to start onboarding')
+  try {
+    const res = await api.post('/profiles/connect/onboard')
+    window.location.href = res.data.url
+    } catch (err: any) {
+    alert(err.response?.data?.message || 'Failed to start onboarding')
     }
   }
 
