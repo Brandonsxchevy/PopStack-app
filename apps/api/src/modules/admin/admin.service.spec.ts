@@ -105,7 +105,7 @@ describe('AdminService', () => {
     it('throws if no pending session found', async () => {
       mockDb.session.findFirst.mockResolvedValue(null)
 
-      await expect(service.refundQuestion('q-1')).rejects.toThrow('No pending session found')
+      await expect(service.refundQuestion('q-1')).rejects.toThrow('No pending session with payment found for this question')
     })
 
     it('throws if session has no payment intent', async () => {
