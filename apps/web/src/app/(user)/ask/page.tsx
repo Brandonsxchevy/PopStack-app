@@ -47,13 +47,18 @@ function AskForm() {
     defaultValues: { budgetTier: 'TWENTY', urgency: 'MEDIUM' },
   })
 
-  useEffect(() => {
+useEffect(() => {
   if (!questionId) return
-  fetch(`${process.env.NEXT_PUBLIC_API_URL}/public/questions`)
-    .then(r => r.json())
-    .then((questions: any[]) => {
-      const q = questions.find((q: any) => q.id === questionId)
-      if (q) setValue('title', q.title)
+  fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/questions/${questionId}`)
+    .then(r => r.ok ? r.json() : null)
+    .then((q: any) => {
+      if (!q) return
+      setValue('title', `Similar issue: ${q.title}`)
+      if (q.url) {
+        setUrlValue(q.url)
+        setValue('url', q.url)
+      }
+      if (q.description) setValue('description', q.description)
     })
     .catch(() => {})
 }, [questionId])
@@ -111,6 +116,14 @@ function AskForm() {
           </p>
         </div>
       )}
+
+      {questionId && (
+    <div className="card bg-purple-50 border-purple-200 mb-5">
+    <p className="text-sm text-purple-700 font-medium">
+      🔗 Pre-filled from a similar question — edit it to describe your specific issue
+    </p>
+      </div>
+    )}
 
       <h1 className="text-2xl font-semibold text-gray-900 mb-1">Submit a request</h1>
       <p className="text-gray-500 mb-6 text-sm">Show us what's going wrong — a Stacker will pop it fast.</p>
