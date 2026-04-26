@@ -27,7 +27,9 @@ const mockStripe = {
 }
 
 jest.mock('stripe', () => {
-  return jest.fn().mockImplementation(() => mockStripe)
+  return {
+    default: jest.fn().mockImplementation(() => mockStripe),
+  }
 })
 
 const mockDb = {
