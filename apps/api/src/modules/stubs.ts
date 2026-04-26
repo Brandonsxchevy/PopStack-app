@@ -262,7 +262,7 @@ export class ModerationModule {}
  getMarqueeQuestions() {
   return this.db.question.findMany({
     where: { status: { in: ['OPEN', 'LOCKED', 'AWAITING_ACCEPT'] } },
-    select: { id: true, title: true, url: true, fingerprint: true },
+    select: { id: true, title: true, url: true, status: true, fingerprint: true },
     orderBy: { createdAt: 'desc' },
     take: 20,
   })
