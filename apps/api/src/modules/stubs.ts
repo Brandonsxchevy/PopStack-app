@@ -3,6 +3,8 @@ import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, Injectabl
 import { JwtAuthGuard, RolesGuard } from '@/common/guards/auth.guard';
 import { Roles, CurrentUser } from '@/common/decorators';
 import { DatabaseService } from '@/database/database.service';
+import { PaymentsService } from './payments/payments.service';
+import { PaymentsModule } from './payments/payments.module';
 
 // ─── USERS ────────────────────────────────────────────────────────────────────
 @Injectable() export class UsersService {
@@ -189,13 +191,6 @@ export class LinksModule {}
     return this.db.profile.upsert({ where: { userId }, update: profileData, create: { userId, ...profileData } });
   }
 }
-@Controller('profiles') export class ProfilesController {
-  constructor(private readonly profiles: ProfilesService) {}
-  @Get(':username') getPublic(@Param('username') u: string) { return this.profiles.getPublic(u); }
-  @Patch('me') @UseGuards(JwtAuthGuard) updateMe(@CurrentUser() u: any, @Body() dto: any) { return this.profiles.update(u.id, dto); }
-}
-@Module({ controllers: [ProfilesController], providers: [ProfilesService], exports: [ProfilesService] })
-export class ProfilesModule {}
 
 // ─── RETAINERS ────────────────────────────────────────────────────────────────
 @Injectable() export class RetainersService {
