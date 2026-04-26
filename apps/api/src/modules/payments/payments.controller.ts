@@ -185,57 +185,6 @@ private async handleCheckoutCompleted(checkoutSession: any) {
   this.logger.log(`Session created for question ${questionId} with developer ${developerId}`)
 }
 
-    const paymentIntentId = checkoutSession.payment_intent;
-
-    // Create session record
-    const session = await this.db.session.create({
-      data: {
-        questionId,
-        userId,
-        developerId,
-        tier: tier as any,
-        status: 'PENDING_ACCEPT',
-        durationSeconds: TIER_SECONDS[tier] || 0,
-        stripePaymentIntentId: paymentIntentId,
-        escrowStatus: 'HELD',
-      },
-    });
-
-    // Update question status
-    await this.db.question.update({
-      where: { id: questionId },
-      data: { status: 'AWAITING_ACCEPT' },
-    });
-
-    // Create or update thread
-    const existingThread = await this.db.thread.findUnique({ where: { questionId } });
-    if (existingThread) {
-      await this.db.thread.update({
-        where: { questionId },
-        data: {
-          sessionId: session.id,
-          status: 'AWAITING_RESPONSE',
-          devSection: 'AWAITING_PAYMENT',
-          userSection: 'WAITING_ON_YOU',
-        },
-      });
-    } else {
-      await this.db.thread.create({
-        data: {
-          userId,
-          developerId,
-          questionId,
-          sessionId: session.id,
-          status: 'AWAITING_RESPONSE',
-          devSection: 'AWAITING_PAYMENT',
-          userSection: 'WAITING_ON_YOU',
-        },
-      });
-    }
-
-    this.logger.log(`Session created for question ${questionId} with developer ${developerId}`);
-  }
-
   private async handlePaymentFailed(pi: any) {
     const session = await this.db.session.findFirst({
       where: { stripePaymentIntentId: pi.id },
