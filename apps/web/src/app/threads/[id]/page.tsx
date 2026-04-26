@@ -414,6 +414,18 @@ export default function ThreadPage() {
     })
   }, [messages.length, user?.id])
 
+  useEffect(() => {
+  const params = new URLSearchParams(window.location.search)
+  if (params.get('helper') === 'success') {
+    toast.success('Helper payment successful — they are now active!')
+    window.history.replaceState({}, '', `/threads/${id}`)
+    qc.invalidateQueries({ queryKey: ['helper-request', thread?.sessionId] })
+  } else if (params.get('helper') === 'cancelled') {
+    toast.info('Helper payment cancelled.')
+    window.history.replaceState({}, '', `/threads/${id}`)
+  }
+}, [])
+
   const accept = useMutation({
     mutationFn: () => api.post(`/sessions/${thread.sessionId}/accept`),
     onSuccess: () => {
