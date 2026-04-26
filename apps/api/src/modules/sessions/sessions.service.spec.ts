@@ -46,6 +46,9 @@ const mockDb = {
   user: {
     findUnique: jest.fn(),
   },
+  helperRequest: {
+    findFirst: jest.fn(),
+  },
 }
 
 const mockPayments = {
@@ -63,19 +66,19 @@ const mockConfig = {
 describe('SessionsService', () => {
   let service: SessionsService
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        SessionsService,
-        { provide: DatabaseService, useValue: mockDb },
-        { provide: PaymentsService, useValue: mockPayments },
-        { provide: ConfigService, useValue: mockConfig },
-      ],
-    }).compile()
-
-    service = module.get<SessionsService>(SessionsService)
-    jest.clearAllMocks()
-  })
+beforeEach(async () => {
+  const module: TestingModule = await Test.createTestingModule({
+    providers: [
+      SessionsService,
+      { provide: DatabaseService, useValue: mockDb },
+      { provide: PaymentsService, useValue: mockPayments },
+      { provide: ConfigService, useValue: mockConfig },
+    ],
+  }).compile()
+  service = module.get<SessionsService>(SessionsService)
+  jest.clearAllMocks()
+  mockDb.helperRequest.findFirst.mockResolvedValue(null)
+})
 
   describe('accept', () => {
     it('accepts a PENDING_ACCEPT session and updates thread to ACTIVE_WORK', async () => {
