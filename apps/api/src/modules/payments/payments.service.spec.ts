@@ -117,7 +117,6 @@ describe('PaymentsService — cashout / Stripe Connect', () => {
       mockStripe.transfers.create.mockResolvedValue({ id: 'tr_1' })
       await service.transferToDeveloper('pi_1', 'dev-1', 'session-1')
       expect(mockStripe.transfers.create).toHaveBeenLastCalledWith(
-     expect(mockStripe.transfers.create).toHaveBeenLastCalledWith(
       expect.objectContaining({ amount: 637 }) // $7.50 - 15% = $6.375 → rounds to 637 cents
     )
       )
