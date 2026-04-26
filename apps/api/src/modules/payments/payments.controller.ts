@@ -64,9 +64,43 @@ async handleStripeWebhook(
 }
 
 private async handleCheckoutCompleted(checkoutSession: any) {
-  const { questionId, userId, tier: rawTier } = checkoutSession.metadata ?? {};
-  
-  // Map frontend tier values to SessionTier enum
+  const metadata = checkoutSession.metadata ?? {}
+  const paymentIntentId = checkoutSession.payment_intent
+
+  // ─── Helper session payment ───────────────────────────────────────────────
+  if (metadata.type === 'helper_session') {
+    const { helperRequestId, userId } = metadata
+    if (!helperRequestId) {
+      this.logger.warn('Helper session completed but missing helperRequestId')
+      return
+    }
+
+    const existing = await this.db.helperRequest.findUnique({ where: { id: helperRequestId } })
+    if (!existing || existing.status === 'PAID' || existing.status === 'ACTIVE') {
+      this.logger.log(`Helper request ${helperRequestId} already processed`)
+      return
+    }
+
+    // Capture the payment
+    const Stripe = require('stripe')
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-04-10' })
+    await stripe.paymentIntents.capture(paymentIntentId)
+
+    await this.db.helperRequest.update({
+      where: { id: helperRequestId },
+      data: {
+        status: 'ACTIVE',
+        stripePaymentIntentId: paymentIntentId,
+      },
+    })
+
+    this.logger.log(`Helper request ${helperRequestId} is now ACTIVE`)
+    return
+  }
+
+  // ─── Regular session payment ──────────────────────────────────────────────
+  const { questionId, userId, tier: rawTier } = metadata
+
   const TIER_MAP: Record<string, string> = {
     FIVE: 'QUICK_FOLLOWUP',
     TWENTY: 'FIFTEEN_MIN',
@@ -76,36 +110,80 @@ private async handleCheckoutCompleted(checkoutSession: any) {
     FULL_SOLUTION: 'FULL_SOLUTION',
   }
   const tier = TIER_MAP[rawTier] || 'FIFTEEN_MIN'
-  
+
   if (!questionId || !userId || !rawTier) {
-      this.logger.warn('Checkout completed but missing metadata', checkoutSession.id);
-      return;
-    }
+    this.logger.warn('Checkout completed but missing metadata', checkoutSession.id)
+    return
+  }
 
-    // Check if session already exists (idempotency)
-    const existing = await this.db.session.findFirst({
-      where: { questionId, userId, status: 'PENDING_ACCEPT' },
-    });
-    if (existing) {
-      this.logger.log(`Session already exists for question ${questionId}`);
-      return;
-    }
+  const existing = await this.db.session.findFirst({
+    where: { questionId, userId, status: 'PENDING_ACCEPT' },
+  })
+  if (existing) {
+    this.logger.log(`Session already exists for question ${questionId}`)
+    return
+  }
 
-    // Get the developer from the question's response
-    const question = await this.db.question.findUnique({
-      where: { id: questionId },
-      include: { responses: true },
-    });
-    if (!question) {
-      this.logger.error(`Question ${questionId} not found`);
-      return;
-    }
+  const question = await this.db.question.findUnique({
+    where: { id: questionId },
+    include: { responses: true },
+  })
+  if (!question) {
+    this.logger.error(`Question ${questionId} not found`)
+    return
+  }
 
-    const developerId = question.preSelectedDevId || question.responses?.[0]?.developerId;
-    if (!developerId) {
-      this.logger.error(`No developer found for question ${questionId}`);
-      return;
-    }
+  const developerId = question.preSelectedDevId || question.responses?.[0]?.developerId
+  if (!developerId) {
+    this.logger.error(`No developer found for question ${questionId}`)
+    return
+  }
+
+  const session = await this.db.session.create({
+    data: {
+      questionId,
+      userId,
+      developerId,
+      tier: tier as any,
+      status: 'PENDING_ACCEPT',
+      durationSeconds: TIER_SECONDS[tier] || 0,
+      stripePaymentIntentId: paymentIntentId,
+      escrowStatus: 'HELD',
+    },
+  })
+
+  await this.db.question.update({
+    where: { id: questionId },
+    data: { status: 'AWAITING_ACCEPT' },
+  })
+
+  const existingThread = await this.db.thread.findUnique({ where: { questionId } })
+  if (existingThread) {
+    await this.db.thread.update({
+      where: { questionId },
+      data: {
+        sessionId: session.id,
+        status: 'AWAITING_RESPONSE',
+        devSection: 'AWAITING_PAYMENT',
+        userSection: 'WAITING_ON_YOU',
+      },
+    })
+  } else {
+    await this.db.thread.create({
+      data: {
+        userId,
+        developerId,
+        questionId,
+        sessionId: session.id,
+        status: 'AWAITING_RESPONSE',
+        devSection: 'AWAITING_PAYMENT',
+        userSection: 'WAITING_ON_YOU',
+      },
+    })
+  }
+
+  this.logger.log(`Session created for question ${questionId} with developer ${developerId}`)
+}
 
     const paymentIntentId = checkoutSession.payment_intent;
 
