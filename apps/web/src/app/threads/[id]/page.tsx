@@ -275,8 +275,8 @@ function AddHelperButton({ thread, session }: { thread: any; session: any }) {
       display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
     }}>
       <div style={{
-        background: 'var(--color-background-primary)', borderRadius: '16px 16px 0 0',
-        padding: 20, width: '100%', maxWidth: 480,
+        background: '#FFFFFF', borderRadius: '16px 16px 0 0',
+        padding: 24, width: '100%', maxWidth: 480, paddingBottom: 36,
       }}>
         <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Request a helper</div>
         <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 16 }}>
@@ -302,13 +302,20 @@ function AddHelperButton({ thread, session }: { thread: any; session: any }) {
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 6 }}>Scope description</div>
           <textarea value={scope} onChange={e => setScope(e.target.value)}
-            placeholder="e.g. Need someone to handle the CSS animations while I work on the backend..."
-            style={{
-              width: '100%', border: '0.5px solid var(--color-border-secondary)',
-              borderRadius: 8, padding: '8px 10px', fontSize: 12,
-              resize: 'none', minHeight: 72, boxSizing: 'border-box',
-              background: 'var(--color-background-secondary)',
-            }} />
+  placeholder="e.g. Need someone to handle the CSS animations while I work on the backend..."
+  style={{
+    width: '100%',
+    border: '1px solid #D1D5DB',
+    borderRadius: 8,
+    padding: '10px 12px',
+    fontSize: 13,
+    resize: 'none',
+    minHeight: 100,
+    boxSizing: 'border-box',
+    background: '#FFFFFF',
+    color: '#111827',
+    lineHeight: 1.5,
+  }} />
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => setOpen(false)} style={{
