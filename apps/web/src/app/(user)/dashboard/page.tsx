@@ -69,7 +69,7 @@ function QuestionCard({ q, ghost = 0 }: { q: any; ghost?: number }) {
         }} />
       )}
       <div
-        onClick={() => router.push(q.thread?.id ? `/threads/${q.thread.id}` : `/question/${q.id}`)}
+        onClick={() => router.push(`/question/${q.id}`)}
         style={{
           position: 'relative', zIndex: 2,
           background: 'var(--color-background-primary)',
