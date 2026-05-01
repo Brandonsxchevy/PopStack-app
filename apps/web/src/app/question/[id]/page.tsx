@@ -169,6 +169,24 @@ useEffect(() => {
           )}
         </div>
 
+        {response && (
+  <div className="card mb-4 flex items-center gap-3">
+    <div className="w-10 h-10 rounded-full bg-brand-light flex items-center justify-center text-brand font-bold text-sm shrink-0">
+      {response.developer.name.charAt(0).toUpperCase()}
+    </div>
+    <div className="flex-1 min-w-0">
+      <div className="text-sm font-medium text-gray-900">{response.developer.name}</div>
+      {response.developer.avgRating && (
+        <div className="text-xs text-amber-600">★ {response.developer.avgRating.toFixed(1)}</div>
+      )}
+    </div>
+    <a href={`/dev/${response.developer.name}`} target="_blank"
+      className="text-xs text-brand border border-brand/30 px-3 py-1.5 rounded-lg hover:bg-brand-light transition-colors shrink-0">
+      View profile →
+    </a>
+  </div>
+)}
+        
         {/* Free response */}
         {response && (
           <div className="card border-green-200 bg-green-50 mb-4">
