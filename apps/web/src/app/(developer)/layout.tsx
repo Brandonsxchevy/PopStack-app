@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '@/lib/store'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 
 const NAV = [
@@ -19,12 +19,18 @@ export default function DeveloperLayout({ children }: { children: React.ReactNod
   const pathname = usePathname()
   const { user, isAuthenticated, clearAuth } = useAuthStore()
   const router = useRouter()
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
+    setReady(true)
+  }, [])
+
+  useEffect(() => {
+    if (!ready) return
     if (!isAuthenticated() || user?.role !== 'DEVELOPER') {
       router.replace('/auth/login')
     }
-  }, [])
+  }, [ready])
 
   const { data: counts } = useQuery({
     queryKey: ['inbox-counts'],
