@@ -271,13 +271,14 @@ function AddHelperButton({ thread, session }: { thread: any; session: any }) {
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100,
-      display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-    }}>
-      <div style={{
-        background: '#FFFFFF', borderRadius: '16px 16px 0 0',
-        padding: 24, width: '100%', maxWidth: 480, paddingBottom: 36,
-      }}>
+  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100,
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+}}>
+  <div style={{
+    background: '#FFFFFF', borderRadius: 16,
+    padding: 24, width: '100%', maxWidth: 480, paddingBottom: 36,
+    margin: '0 16px',
+  }}>
         <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Request a helper</div>
         <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 16 }}>
           Post to the dev feed — another dev can join and help you finish.
